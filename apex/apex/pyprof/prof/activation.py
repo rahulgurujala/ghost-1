@@ -25,7 +25,7 @@ class Activation(OperatorLayerBase):
 		#Filter out named parameters
 		args = list(filter(lambda x : x['name'] == '', args))
 
-		assert (len(args) >= 1)
+		assert args
 		arg = args[0]
 		assert (arg['type'] == "tensor")
 
@@ -33,17 +33,14 @@ class Activation(OperatorLayerBase):
 		self.dir = d.dir
 
 	def params(self):
-		p = OrderedDict([('T', self.i['shape']),('type', self.i['dtype'])])
-		return p
+		return OrderedDict([('T', self.i['shape']),('type', self.i['dtype'])])
 
 	def flops(self):
 		direction = self.dir
 		tensor = self.i['shape']
 		t = self.i['dtype']
 
-		# TODO: revise
-		elems = Utility.numElems(tensor)
-		return elems
+		return Utility.numElems(tensor)
 
 	def bytes(self):
 		direction = self.dir

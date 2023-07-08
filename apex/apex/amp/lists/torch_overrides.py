@@ -63,7 +63,7 @@ FP32_FUNCS = [
 version_strings = torch.__version__.split('.')
 version_major = version_strings[0]
 version_minor = version_strings[1]
-version_num = float(version_major + "." + version_minor)
+version_num = float(f"{version_major}.{version_minor}")
 # Before torch 1.1, mean must be blacklisted.
 if version_num < 1.1:
     FP32_FUNCS.append('mean')

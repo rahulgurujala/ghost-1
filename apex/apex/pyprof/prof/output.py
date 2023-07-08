@@ -33,7 +33,7 @@ class Output():
 	def __init__(self, args):
 		self.cols = args.c
 		self.csv = args.csv
-		self.col = True if (args.w > 0) else False
+		self.col = args.w > 0
 		self.width = args.w
 
 		w = 0
@@ -42,7 +42,7 @@ class Output():
 			w += Output.table[col][3]
 
 		if ((self.col) and (w > self.width)):
-			print("Minimum width required to print {} = {}. Exiting.".format(",".join(self.cols), w))
+			print(f'Minimum width required to print {",".join(self.cols)} = {w}. Exiting.')
 			sys.exit(1)
 
 		remainder = self.width - w
@@ -59,7 +59,7 @@ class Output():
 		cadena = ""
 		for col in self.cols:
 			_,_,t,w = Output.table[col]
-			cadena += "%-{}.{}s ".format(w,w)
+			cadena += f"%-{w}.{w}s "
 
 		self.hFormat = cadena
 
@@ -68,15 +68,15 @@ class Output():
 		for col in self.cols:
 			_,_,t,w = Output.table[col]
 			if (t == str):
-				cadena += "%-{}.{}s ".format(w,w)
+				cadena += f"%-{w}.{w}s "
 			elif (t == int):
-				cadena += "%{}d ".format(w)
+				cadena += f"%{w}d "
 
 		self.dFormat = cadena
 
 	def foo(self, cadena, pformat):
 		if self.csv:
-			cadena = ",".join(map(lambda x : '"' + str(x) + '"', cadena))
+			cadena = ",".join(map(lambda x: f'"{str(x)}"', cadena))
 		elif self.col:
 			cadena = pformat % cadena
 		else:
@@ -105,21 +105,9 @@ class Output():
 		self.foo(cadena, self.hFormat)
 
 	def data(self, a):
-		if a.dir == "":
-			direc = "na"
-		else:
-			direc = a.dir
-
-		if a.op == "":
-			op = "na"
-		else:
-			op = a.op
-
-		if a.mod == "":
-			mod = "na"
-		else:
-			mod = a.mod
-
+		direc = "na" if a.dir == "" else a.dir
+		op = "na" if a.op == "" else a.op
+		mod = "na" if a.mod == "" else a.mod
 		cadena = ()
 		for col in self.cols:
 			attr = Output.table[col][1]
@@ -128,22 +116,22 @@ class Output():
 			if col == "layer":
 				assert(type(val) == list)
 				val = ":".join(val)
-				val = "-" if val == "" else val
+				val = "-" if not val else val
 
-			if col == "trace":
+			elif col == "trace":
 				assert(type(val) == list)
 				if self.col and len(val):
 					val = val[-1]
 					val = val.split("/")[-1]
 				else:
 					val = ",".join(val)
-					val = "-" if val == "" else val
+					val = "-" if not val else val
 
 			if col in ["seq", "altseq"]:
 				assert(type(val) == list)
 				val = ",".join(map(str,val))
-				val = "-" if val == "" else val
+				val = "-" if not val else val
 
 			cadena = cadena + (val,)
-	
+
 		self.foo(cadena, self.dFormat)

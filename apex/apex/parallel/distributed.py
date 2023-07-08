@@ -51,9 +51,8 @@ def apply_flat_dist_call(bucket, call, extra_args=None):
 def split_half_float_double(tensors):
     dtypes = ["torch.cuda.HalfTensor",  "torch.cuda.FloatTensor", "torch.cuda.DoubleTensor"]
     buckets = []
-    for i, dtype in enumerate(dtypes):
-        bucket = [t for t in tensors if t.type() == dtype]
-        if bucket:
+    for dtype in dtypes:
+        if bucket := [t for t in tensors if t.type() == dtype]:
             buckets.append(bucket)
     return buckets
 
@@ -188,7 +187,7 @@ class DistributedDataParallel(Module):
             self._backend = dist._backend
             self.backend_enum_holder = dist.dist_backend
 
-        self.warn_on_half = True if self._backend == self.backend_enum_holder.GLOO else False
+        self.warn_on_half = self._backend == self.backend_enum_holder.GLOO
 
         self.prof = prof
 
@@ -218,7 +217,9 @@ class DistributedDataParallel(Module):
             if delay_allreduce:
                 raise ValueError("Setting allreduce_trigger_params is only valid if delay_allreduce=False.")
             self.custom_allreduce_triggers = True
-            self.allreduce_trigger_params = set([id(param) for param in allreduce_trigger_params])
+            self.allreduce_trigger_params = {
+                id(param) for param in allreduce_trigger_params
+            }
 
         self.delay_allreduce = delay_allreduce
         self.message_size = message_size
@@ -570,9 +571,14 @@ class DistributedDataParallel(Module):
                 # Forward has the authority to set needs_refresh to True, but only allreduce_params
                 # in backward has the authority to set needs_refresh to False.
                 # Parentheses are not necessary for correct order of operations, but make the intent clearer.
-                if ((not self.active_params) or
-                    (len(param_list) != len(self.active_params)) or
-                    any([param1 is not param2 for param1, param2 in zip(param_list, self.active_params)])):
+                if (
+                    not self.active_params
+                    or len(param_list) != len(self.active_params)
+                    or any(
+                        param1 is not param2
+                        for param1, param2 in zip(param_list, self.active_params)
+                    )
+                ):
                     self.needs_refresh = True
 
                 if self.needs_refresh:
@@ -593,11 +599,13 @@ class DistributedDataParallel(Module):
                         self.buckets = [[None for _ in range(self.bucket_sizes[i])]
                                         for i in range(self.num_buckets)]
                     else:
-                        assert len(self.buckets) == self.num_buckets, "len(buckets) = {}, expected {}".format(
-                            len(self.buckets), self.num_buckets)
+                        assert (
+                            len(self.buckets) == self.num_buckets
+                        ), f"len(buckets) = {len(self.buckets)}, expected {self.num_buckets}"
                         for b, bucket in enumerate(self.buckets):
-                            assert len(bucket) == self.bucket_sizes[b], "len(buckets[{}]) = {}, expected {})".format(
-                                b, len(buckets[b]), self.bucket_sizes[b])
+                            assert (
+                                len(bucket) == self.bucket_sizes[b]
+                            ), f"len(buckets[{b}]) = {len(buckets[b])}, expected {self.bucket_sizes[b]})"
                             for i in range(len(bucket)):
                                 bucket[i] = None
 
@@ -611,19 +619,19 @@ class DistributedDataParallel(Module):
                             if not self.bucket_pgs:
                                 self.bucket_pgs = [dist.new_group() for _ in range(self.num_allreduce_streams)]
                                 for i, bg in enumerate(self.bucket_pgs):
-                                    print("rank {} created group {} with backend {}".format(
-                                          dist.get_rank(), i, dist.get_backend(bg)))
-                        if self.allreduce_different_streams:
-                            if not self.bucket_streams:
+                                    print(
+                                        f"rank {dist.get_rank()} created group {i} with backend {dist.get_backend(bg)}"
+                                    )
+                        if not self.bucket_streams:
+                            if self.allreduce_different_streams:
                                 self.bucket_streams = [torch.cuda.Stream() for _ in range(self.num_allreduce_streams)]
                                 self.bucket_events = [torch.cuda.Event(enable_timing=False,
                                                       blocking=False) for _ in range(self.num_allreduce_streams)]
-                        else:
-                            if not self.bucket_streams:
+                            else:
                                 self.bucket_streams = [torch.cuda.Stream()]
                                 self.bucket_events = [torch.cuda.Event(enable_timing=False, blocking=False)]
 
-                    self.buckets_ready_size = [0 for i in range(self.num_buckets)]
+                    self.buckets_ready_size = [0 for _ in range(self.num_buckets)]
                     if(self.retain_allreduce_buffers):
                         self.allreduce_buffers = [None for _ in range(self.num_buckets)]
                     self.next_bucket = 0

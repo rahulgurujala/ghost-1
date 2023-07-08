@@ -26,8 +26,7 @@ class Dropout(OperatorLayerBase):
 		return
 
 	def params(self):
-		p = OrderedDict([('T', self.shape), ('type', self.type)])
-		return p
+		return OrderedDict([('T', self.shape), ('type', self.type)])
 
 	def op(self):
 		return self.op_

@@ -48,7 +48,7 @@ class Pointwise(OperatorLayerBase):
 		#Filter out non tensors
 		args = list(filter(lambda x : x['type'] == "tensor", args))
 
-		if (len(args) == 0):
+		if not args:
 			self.shape = [(1,)]
 			self.type = "float32" #FIX
 
@@ -82,8 +82,7 @@ class Pointwise(OperatorLayerBase):
 		return
 
 	def params(self):
-		p = OrderedDict([('T',self.shape), ('type', self.type)])
-		return p
+		return OrderedDict([('T',self.shape), ('type', self.type)])
 
 	def tc(self):
 		return "-"
@@ -105,13 +104,12 @@ class Pointwise(OperatorLayerBase):
 				elems = Utility.numElems(tensor[0])
 				if self.dir == "fprop":
 					elems *= 3
+				elif (self.op_ in ["add", "__add__", "sub", "__sub__", "__isub__"]):
+					elems *= 2
+				elif (self.op_ in ["__mul__", "__rmul__", "div", "__truediv__"]):
+					elems *= 3
 				else:
-					if (self.op_ in ["add", "__add__", "sub", "__sub__", "__isub__"]):
-						elems *= 2
-					elif (self.op_ in ["__mul__", "__rmul__", "div", "__truediv__"]):
-						elems *= 3
-					else:
-						assert False
+					assert False
 			else:	#check for broadcast conditions
 				array1 = np.empty(list(tensor[0]))
 				array2 = np.empty(list(tensor[1]))

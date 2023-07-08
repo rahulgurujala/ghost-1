@@ -92,10 +92,7 @@ def transducer_joint_reference(f, g, h_grad, f_len, g_len, pack_output):
             h[b, :, g_len[b]:] = -1
         return h, f.grad, g.grad 
 
-    # packing
-    list_to_pack = []
-    for b in range(B):
-        list_to_pack.append(h[b, :f_len[b], :g_len[b], :].reshape(-1, H))
+    list_to_pack = [h[b, :f_len[b], :g_len[b], :].reshape(-1, H) for b in range(B)]
     h_packed = torch.cat(list_to_pack)
     return h_packed, f.grad, g.grad
 

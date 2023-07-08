@@ -61,10 +61,7 @@ class Addmm(OperatorLayerBase):
 		return
 
 	def tc(self):
-            for s in TC_GEMMS:
-                if s in self.name:
-                    return 1
-            return 0
+		return next((1 for s in TC_GEMMS if s in self.name), 0)
 
 	def bytes(self):
 		m, n, k = self.m, self.n, self.k
@@ -80,8 +77,7 @@ class Addmm(OperatorLayerBase):
 		return self.mod_
 
 	def params(self):
-		p = OrderedDict([('M',self.n),('N',self.m),('K',self.k),('type',self.type)])
-		return p
+		return OrderedDict([('M',self.n),('N',self.m),('K',self.k),('type',self.type)])
 
 class Bmm(OperatorLayerBase):
 
@@ -121,15 +117,18 @@ class Bmm(OperatorLayerBase):
 		self.name = d.name
 
 	def tc(self):
-            for s in TC_GEMMS:
-                if s in self.name:
-                    return 1
-            return 0
+		return next((1 for s in TC_GEMMS if s in self.name), 0)
 
 	def params(self):
-		#p = OrderedDict([('A', A['shape']), ('B', B['shape']), ('type', t1)])
-		p = OrderedDict([('B',self.b), ('M',self.n),('N',self.m),('K',self.k),('type',self.type)])
-		return p
+		return OrderedDict(
+			[
+				('B', self.b),
+				('M', self.n),
+				('N', self.m),
+				('K', self.k),
+				('type', self.type),
+			]
+		)
 
 	def flops(self):
 		return self.b * self.m * self.n * self.k * 2
@@ -166,7 +165,7 @@ class Matmul(OperatorLayerBase):
 		assert ((mod == "torch") and (op == "matmul")) or ((mod == "Tensor") and (op == "__matmul__"))
 		assert (len(args) == 2)
 
-		assert any([x in d.name for x in Matmul.NON_TC + ["gemm", "gemv"]])
+		assert any(x in d.name for x in Matmul.NON_TC + ["gemm", "gemv"])
 
 		A,B = args
 		t1 = A['dtype']
@@ -224,7 +223,7 @@ class Matmul(OperatorLayerBase):
 		elif (len(A) == 1) and (len(B) > 2):
 			assert (A[0] == B[-2])
 
-			self.b = B[0:-2]
+			self.b = B[:-2]
 			self.m = 1
 			self.n = B[-1]
 			self.k = B[-2]
@@ -232,7 +231,7 @@ class Matmul(OperatorLayerBase):
 		elif (len(B) == 1) and (len(A) > 2):
 			assert (B[0] == A[-1])
 
-			self.b = A[0:-2]
+			self.b = A[:-2]
 			self.m = A[-2]
 			self.n = 1
 			self.k = A[-1]
@@ -245,8 +244,8 @@ class Matmul(OperatorLayerBase):
 			self.n = B[-1]
 			self.k = A[-1]
 
-			aa = np.empty(A[0:-2])
-			bb = np.empty(B[0:-2])
+			aa = np.empty(A[:-2])
+			bb = np.empty(B[:-2])
 			self.b = np.broadcast(aa, bb).shape
 
 	def params(self):
@@ -256,18 +255,13 @@ class Matmul(OperatorLayerBase):
 		if self.name in Matmul.NON_TC:
 			return "-"
 		else:
-                    for s in TC_GEMMS:
-                        if s in self.name:
-                            return 1
-                    return 0
+			return next((1 for s in TC_GEMMS if s in self.name), 0)
 
 	def bytes(self):
-		# TODO: check bytes for non-GEMM cases
 		if self.name in Matmul.NON_GEMM:
 			return 2 * Utility.typeToBytes(self.type) * Utility.numElems(self.A) #could be B as well
-		else:
-			m, n, k = self.m, self.n, self.k
-			return Utility.typeToBytes(self.type) * (m*n + m*k + n*k)
+		m, n, k = self.m, self.n, self.k
+		return Utility.typeToBytes(self.type) * (m*n + m*k + n*k)
 
 	def flops(self):
 		# TODO: calculate actual FLOPs. At least we're not saying it's GEMM FLOPs for now.
@@ -317,14 +311,10 @@ class Mm(OperatorLayerBase):
 		return
 
 	def params(self):
-		p = OrderedDict([('M',self.n),('N',self.m),('K',self.k),('type',self.type)])
-		return p
+		return OrderedDict([('M',self.n),('N',self.m),('K',self.k),('type',self.type)])
 
 	def tc(self):
-            for s in TC_GEMMS:
-                if s in self.name:
-                    return 1
-            return 0
+		return next((1 for s in TC_GEMMS if s in self.name), 0)
 
 	def bytes(self):
 		m, n, k = self.m, self.n, self.k

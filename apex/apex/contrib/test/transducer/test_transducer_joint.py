@@ -14,17 +14,14 @@ class TransducerJointTest(unittest.TestCase):
         T_max = 101
         U_min = 12
         U_max = 25
-        if for_vector_kernel:
-            H = 512
-        else:
-            H = 509
+        H = 512 if for_vector_kernel else 509
         dtype = torch.float16
         device = "cuda"
 
         self.f_tst = torch.randn((self.B, T_max, H), dtype=dtype, requires_grad=True, device=device)
         self.g_tst = torch.randn((self.B, U_max, H), dtype=dtype, requires_grad=True, device=device)
         self.h_grad = torch.randn(self.B, T_max, U_max, H, dtype=dtype, device=device)
-        self.f_len = torch.randint(T_min, T_max+1, (self.B,), dtype=torch.int, device=device) 
+        self.f_len = torch.randint(T_min, T_max+1, (self.B,), dtype=torch.int, device=device)
         self.g_len = torch.randint(U_min, U_max+1, (self.B,), dtype=torch.int, device=device)
         self.f_len[torch.randint(0, self.B, (1,)).item()] = T_max
         self.g_len[torch.randint(0, self.B, (1,)).item()] = U_max

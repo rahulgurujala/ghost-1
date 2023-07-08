@@ -25,8 +25,7 @@ class BatchNorm(OperatorLayerBase):
 		self.dir = d.dir
 
 	def params(self):
-		p = OrderedDict([('T', self.shape), ('type', self.type)])
-		return p
+		return OrderedDict([('T', self.shape), ('type', self.type)])
 
 	def tc(self):
 		return "-"

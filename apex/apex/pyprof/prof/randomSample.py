@@ -23,8 +23,7 @@ class RandPerm(OperatorLayerBase):
 		self.n = n['value']
 
 	def params(self):
-		p = OrderedDict([('N', self.n)])
-		return p
+		return OrderedDict([('N', self.n)])
 
 	def tc(self):
 		return "-"

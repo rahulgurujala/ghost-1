@@ -55,118 +55,106 @@ def findFpropKernel(seq):
 
 def foo(mod, op, d):
 	if (op[0] == "linear"):
-		xx = Linear(d)
+		return Linear(d)
 
-	# rnncell, lstmcell, grucell
 	elif (mod[0] in["LSTMCell", "GRUCell"]) and (op[0] == "forward"):
-		xx = RNNCell(d)
+		return RNNCell(d)
 
 	elif op[0] in ["conv1d", "conv2d",]:
-		xx = Conv(d)
+		return Conv(d)
 
 	elif (op[0] in Pointwise.ops):
-		xx = Pointwise(d)
+		return Pointwise(d)
 
 	elif (op[0] in Convert.ops):
-		xx = Convert(d)
+		return Convert(d)
 
 	elif op[0] in ["__matmul__", "matmul"]:
-		xx = Matmul(d)
+		return Matmul(d)
 
 	elif op[0] == "embedding":
-		xx = Embedding(d)
+		return Embedding(d)
 
-	#reduction
 	elif op[0] == "sum":
-		xx = Sum(d)
+		return Sum(d)
 
 	elif op[0] == "mean":
-		xx = Mean(d)
+		return Mean(d)
 
 	elif op[0] == "norm":
-		xx = Norm(d)
+		return Norm(d)
 
 	elif op[0] == "dropout":
-		xx = Dropout(d)
+		return Dropout(d)
 
-	#Index, Slice, Join, Mutate
 	elif (op[0] == "cat"):
-		xx = Cat(d)
+		return Cat(d)
 
 	elif (op[0] == "reshape"):
-		xx = Reshape(d)
+		return Reshape(d)
 
 	elif (op[0] == "masked_scatter_"):
-		xx = MaskedScatter(d)
+		return MaskedScatter(d)
 
 	elif (op[0] == "gather"):
-		xx = Gather(d)
+		return Gather(d)
 
 	elif (op[0] == "nonzero"):
-		xx = Nonzero(d)
+		return Nonzero(d)
 
 	elif (op[0] == "index_select"):
-		xx = IndexSelect(d)
+		return IndexSelect(d)
 
 	elif (op[0] == "masked_select"):
-		xx = MaskedSelect(d)
+		return MaskedSelect(d)
 
-	#blas
 	elif op[0] in ["addmm", "addmm_"]:
-		xx = Addmm(d)
+		return Addmm(d)
 
 	elif op[0] == "mm":
-		xx = Mm(d)
+		return Mm(d)
 
 	elif op[0] == "bmm":
-		xx = Bmm(d)
+		return Bmm(d)
 
-	#softmax
 	elif op[0] == "softmax":
-		xx = Softmax(d)
+		return Softmax(d)
 
 	elif op[0] == "log_softmax":
-		xx = LogSoftmax(d)
+		return LogSoftmax(d)
 
-	#loss
 	elif op[0] == "mse_loss":
-		xx = MSELoss(d)
+		return MSELoss(d)
 
-	#optimizers
 	elif op[0] == "adam":
-		xx = Adam(d)
+		return Adam(d)
 
-	#normalization
 	elif op[0] == "batch_norm":
-		xx = BatchNorm(d)
+		return BatchNorm(d)
 
-	#random
 	elif op[0] == "randperm":
-		xx = RandPerm(d)
+		return RandPerm(d)
 
-	#misc
 	elif op[0] == "copy_":
-		xx = Copy(d)
+		return Copy(d)
 
 	elif op[0] == "clone":
-		xx = Clone(d)
+		return Clone(d)
 
 	elif op[0] == "contiguous":
-		xx = Contiguous(d)
+		return Contiguous(d)
 
 	elif op[0] == "any":
-		xx = Any(d)
+		return Any(d)
 
 	elif (op[0] in Activation.ops):
-		xx = Activation(d)
+		return Activation(d)
 
 	elif op[0] == "to":
-		xx = Convert(d)
+		return Convert(d)
 
 	else:
-		xx = Foo(d)
-
-	return xx
+		return Foo(d)
 
 def main():
 	#Read cmd line arguments
@@ -175,10 +163,8 @@ def main():
 	output = Output(cmdArgs)
 	output.header()
 
-	idx = -1
 	#Read in all the kernel info
-	for line in cmdArgs.file:
-		idx += 1
+	for idx, line in enumerate(cmdArgs.file):
 		kernel = eval(line)
 		assert(kernel)
 		kernels.append(kernel)
@@ -197,8 +183,6 @@ def main():
 		if (d.dir == "bprop"):
 			d.seqMarker = k['seqMarker']
 			seq = k['seqId']
-			if len(seq) > 1:
-				pass
 			seq = k['seqId'][:1]
 			assert (len(seq) == 1), seq
 			#assert (seq[0] != 0)
@@ -228,17 +212,9 @@ def main():
 			tc = xx.tc()
 
 		if type(op) is list:
-			if len(op):
-				op = op[0]
-			else:
-				op = ""
-
+			op = op[0] if len(op) else ""
 		if type(mod) is list:
-			if len(mod):
-				mod = mod[0]
-			else:
-				mod = ""
-
+			mod = mod[0] if len(mod) else ""
 		d.index = idx+1
 
 		# The following 8 come from operator class functions.

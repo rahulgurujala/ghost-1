@@ -49,8 +49,7 @@ class MSELoss(OperatorLayerBase):
 		self.dir = d.dir
 
 	def params(self):
-		p = OrderedDict([('T', self.shape), ('type', self.type), ('red', self.red)])
-		return p
+		return OrderedDict([('T', self.shape), ('type', self.type), ('red', self.red)])
 
 	def elems(self):
 		red = self.red
@@ -61,11 +60,10 @@ class MSELoss(OperatorLayerBase):
 				e *= 3
 			else:
 				e *= 2
+		elif red == "none":
+			e *= 4
 		else:
-			if red == "none":
-				e *= 4
-			else:
-				e *= 3
+			e *= 3
 		return e
 
 	def bytes(self):

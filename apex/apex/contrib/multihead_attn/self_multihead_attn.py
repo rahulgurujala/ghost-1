@@ -86,13 +86,18 @@ class SelfMultiheadAttn(nn.Module):
         self.reset_parameters()
 
         if self.include_norm_add:
-            if   impl == 'fast'    : self.attn_func = fast_self_attn_norm_add_func
-            elif impl == 'default' : self.attn_func = self_attn_func
-            else :                   assert False, "Unsupported impl: {} !".format(impl)
-        else:
+            if impl == 'default':
+                self.attn_func = self_attn_func
+            elif impl == 'fast':
+                if   impl == 'fast'    : self.attn_func = fast_self_attn_norm_add_func
+            else:
+                assert False, f"Unsupported impl: {impl} !"
+        elif impl == 'default':
+            self.attn_func = self_attn_func
+        elif impl == 'fast':
             if   impl == 'fast'    : self.attn_func = fast_self_attn_func
-            elif impl == 'default' : self.attn_func = self_attn_func
-            else :                   assert False, "Unsupported impl: {} !".format(impl)
+        else:
+            assert False, f"Unsupported impl: {impl} !"
 
     def reset_parameters(self):
         if self.separate_qkv_params:
@@ -140,7 +145,7 @@ class SelfMultiheadAttn(nn.Module):
             else:
                 input_bias = self.in_proj_bias
         else:
-            input_bias=None        
+            input_bias=None
         if key_padding_mask is not None:
             assert (attn_mask is None), "ERROR attn_mask and key_padding_mask should not be both defined!"
             mask = key_padding_mask
@@ -161,18 +166,18 @@ class SelfMultiheadAttn(nn.Module):
                                          input_weights, self.out_proj_weight,
                                          input_bias, self.out_proj_bias,
                                          mask, self.dropout)
-                if is_training:
-                    outputs = jit_dropout_add(outputs, query, self.dropout, is_training)
-                else:
-                    outputs = outputs + query
+                outputs = (
+                    jit_dropout_add(outputs, query, self.dropout, is_training)
+                    if is_training
+                    else outputs + query
+                )
+        elif self.impl == 'fast':
+            outputs = self.attn_func(attn_mask is not None, is_training, self.num_heads, query,
+                                     input_weights, self.out_proj_weight, input_bias, self.out_proj_bias, mask, self.mask_additive, self.dropout)
         else:
-            if self.impl == 'fast':
-                outputs = self.attn_func(attn_mask is not None, is_training, self.num_heads, query,
-                                         input_weights, self.out_proj_weight, input_bias, self.out_proj_bias, mask, self.mask_additive, self.dropout)
-            else:
-                outputs = self.attn_func(attn_mask is not None, is_training, self.num_heads, self.scaling, query,
-                                         input_weights, self.out_proj_weight,
-                                         input_bias, self.out_proj_bias,
-                                         mask, self.mask_additive, self.dropout)
+            outputs = self.attn_func(attn_mask is not None, is_training, self.num_heads, self.scaling, query,
+                                     input_weights, self.out_proj_weight,
+                                     input_bias, self.out_proj_bias,
+                                     mask, self.mask_additive, self.dropout)
 
         return outputs,None

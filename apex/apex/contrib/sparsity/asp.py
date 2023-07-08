@@ -89,7 +89,9 @@ class ASP:
             whitelist += list(custom_layer_dict.keys())
 
         for module_type in whitelist:
-            assert (module_type in sparse_parameter_list), "Module %s :: Don't know how to sparsify module." % module.dtype()
+            assert (
+                module_type in sparse_parameter_list
+            ), f"Module {module.dtype()} :: Don't know how to sparsify module."
 
         # find all sparse modules, extract sparse parameters and decorate
         def add_sparse_attributes(module_name, module):
@@ -98,27 +100,35 @@ class ASP:
                 if p_name in sparse_parameters and p.requires_grad:
                     # check for NVIDIA's TC compatibility: we check along the horizontal direction
                     if p.dtype == torch.float32 and ((p.size()[0] % 8) != 0 or (p.size()[1] % 16) != 0): #User defines FP32 and APEX internally uses FP16 math
-                        print("[ASP] Auto skipping pruning %s::%s of size=%s and type=%s for sparsity" % (module_name, p_name, str(p.size()), str(p.dtype)))
+                        print(
+                            f"[ASP] Auto skipping pruning {module_name}::{p_name} of size={str(p.size())} and type={str(p.dtype)} for sparsity"
+                        )
                         continue
                     if p.dtype == torch.float16 and ((p.size()[0] % 8) != 0 or (p.size()[1] % 16) != 0): #For Conv2d dim= K x CRS; we prune along C
-                        print("[ASP] Auto skipping pruning %s::%s of size=%s and type=%s for sparsity" % (module_name, p_name, str(p.size()), str(p.dtype)))
+                        print(
+                            f"[ASP] Auto skipping pruning {module_name}::{p_name} of size={str(p.size())} and type={str(p.dtype)} for sparsity"
+                        )
                         continue
-                    
+
                     if cls.__verbosity >= 3:
-                        print("[ASP] Sparsifying %s::%s of size=%s and type=%s for sparsity" % (module_name, p_name, str(p.size()), str(p.dtype)))
-                    
+                        print(
+                            f"[ASP] Sparsifying {module_name}::{p_name} of size={str(p.size())} and type={str(p.dtype)} for sparsity"
+                        )
+
                     mask = torch.ones_like(p).bool()
                     buffname = p_name.split(".")[-1] # buffer names cannot contain "."
-                    module.register_buffer('__%s_mma_mask' % buffname, mask)
+                    module.register_buffer(f'__{buffname}_mma_mask', mask)
                     if allow_recompute_mask:
                         pruned = torch.zeros_like(p).cpu()
-                        module.register_buffer('__%s_mma_pruned_p' % buffname, pruned)
+                        module.register_buffer(f'__{buffname}_mma_pruned_p', pruned)
                     else:
                         pruned = None
                     cls.__sparse_parameters.append((module_name, module, p_name, p, mask, pruned))
                 else:
                     if cls.__verbosity >= 3:
-                        print("[ASP] Not sparsifying %s::%s of size=%s and type=%s" % (module_name, p_name, str(p.size()), str(p.dtype)))
+                        print(
+                            f"[ASP] Not sparsifying {module_name}::{p_name} of size={str(p.size())} and type={str(p.dtype)}"
+                        )
 
         for name, sparse_module in eligible_modules(model, tuple(whitelist), allowed_layer_names, disallowed_layer_names):
             add_sparse_attributes(name, sparse_module)
@@ -185,7 +195,9 @@ class ASP:
                     mask.fill_(1)
                     pruned.zero_()
                     if cls.__verbosity >= 2:
-                        print("[ASP] Disabled sparsity for %s::%s (dense weights restored)" % (module_name, p_name))
+                        print(
+                            f"[ASP] Disabled sparsity for {module_name}::{p_name} (dense weights restored)"
+                        )
 
     @classmethod
     def is_sparsity_enabled(cls):
@@ -202,7 +214,7 @@ class ASP:
             elif mask_sum*2 == mask_numel:
                 sp50 += 1
 
-        assert (total == sp100 or total == sp50), "Inconsistent model sparsity"
+        assert total in [sp100, sp50], "Inconsistent model sparsity"
         if total == sp100:
             return False
         elif total == sp50:

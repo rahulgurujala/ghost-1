@@ -23,12 +23,9 @@ for stride, o_channel in [(1,32), (1,128), (2,32)]:
         print("[DEBUG] ref dx :", d_grad.sum().item())
         # print wgrad. we don't need to reset since later cpp print before accumulation
         for i, w in enumerate(model.w_conv):
-            print("[DEBUG] ref wgrad{} :".format(i+1), w.grad.sum().item())
+            print(f"[DEBUG] ref wgrad{i + 1} :", w.grad.sum().item())
 
-    wgrads = []
-    for w in model.w_conv:
-        wgrads.append(w.grad.float())
-
+    wgrads = [w.grad.float() for w in model.w_conv]
     model.use_cudnn = True
     model.zero_grad()
     c = model(a)
@@ -39,7 +36,12 @@ for stride, o_channel in [(1,32), (1,128), (2,32)]:
     print("max error fprop:", (b-c).abs().max().item(), "max elem:", b.abs().max().item())
     print("max error dgrad:", (d_grad-a.grad.float()).abs().max().item(), "max elem:", d_grad.abs().max().item())
     for i, (w, wgrad) in enumerate(zip(model.w_conv, wgrads)):
-        print("max error wgrad{}:".format(i+1), (wgrad - w.grad.float()).abs().max().item(), "max elem:", wgrad.abs().max().item())
+        print(
+            f"max error wgrad{i + 1}:",
+            (wgrad - w.grad.float()).abs().max().item(),
+            "max elem:",
+            wgrad.abs().max().item(),
+        )
 
     nhwc_a = a_.permute(0,2,3,1).contiguous().cuda().half().requires_grad_()
     nhwc_model = Bottleneck(32,8,o_channel,stride=stride,explicit_nhwc=True, use_cudnn=True).cuda().half()
@@ -59,13 +61,15 @@ for stride, o_channel in [(1,32), (1,128), (2,32)]:
     #print(max([x-y for x,y in zip(c_s,d_s)]))
     c = c.contiguous(memory_format=torch.contiguous_format).permute(0,2,3,1).contiguous()
     d_grad = a.grad.float().permute(0,2,3,1).contiguous()
-    wgrads = []
-    for w in model.w_conv:
-        wgrads.append(w.grad.float().permute(0,2,3,1).contiguous())
-
+    wgrads = [w.grad.float().permute(0,2,3,1).contiguous() for w in model.w_conv]
     torch.cuda.synchronize()
     print("comparing nhwc and channels_last:")
     print("max error fprop:", (d-c).abs().max().item(), "max elem:", c.abs().max().item())
     print("max error dgrad:", (d_grad-nhwc_a.grad.float()).abs().max().item(), "max elem:", d_grad.abs().max().item())
     for i, (w, wgrad) in enumerate(zip(nhwc_model.w_conv, wgrads)):
-        print("max error wgrad{}:".format(i+1), (wgrad - w.grad.float()).abs().max().item(), "max elem:", wgrad.abs().max().item())
+        print(
+            f"max error wgrad{i + 1}:",
+            (wgrad - w.grad.float()).abs().max().item(),
+            "max elem:",
+            wgrad.abs().max().item(),
+        )

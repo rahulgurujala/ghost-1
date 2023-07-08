@@ -29,7 +29,7 @@ def train_step(args, model, optimizer, input_batch, target_batch, step):
     return step
 
 def train_loop(args, model, optimizer, step, num_steps):
-    for i in range(num_steps):
+    for _ in range(num_steps):
         input_batch = torch.randn([args.batch_size, args.input_features]).cuda()
         target_batch = torch.randn([args.batch_size, args.output_features]).cuda()
         step = train_step(args, model, optimizer, input_batch, target_batch, step)

@@ -12,7 +12,7 @@ class DB(object):
 			conn.row_factory = sqlite3.Row
 			c = conn.cursor()
 		except:
-			print("Error opening {}".format(dbFile))
+			print(f"Error opening {dbFile}")
 			sys.exit(1)
 
 		self.conn = conn
@@ -27,7 +27,7 @@ class DB(object):
 			print(e)
 			sys.exit(1)
 		except:
-			print("Uncaught error in SQLite access while executing {}".format(cmd))
+			print(f"Uncaught error in SQLite access while executing {cmd}")
 			sys.exit(1)
 
 		#print(rows)
@@ -40,7 +40,7 @@ class DB(object):
 			print(e)
 			sys.exit(1)
 		except:
-			print("Uncaught error in SQLite access while executing {}".format(cmd))
+			print(f"Uncaught error in SQLite access while executing {cmd}")
 			sys.exit(1)
 
 	def execute(self, cmd):
@@ -50,7 +50,7 @@ class DB(object):
 			print(e)
 			sys.exit(1)
 		except:
-			print("Uncaught error in SQLite access while executing {}".format(cmd))
+			print(f"Uncaught error in SQLite access while executing {cmd}")
 			sys.exit(1)
 
 	def commit(self):

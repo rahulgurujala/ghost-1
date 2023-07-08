@@ -44,13 +44,12 @@ def isfunc(mod, f):
 	return ins.ismethod(attr) or ins.isfunction(attr) or ins.ismethoddescriptor(attr) or ins.isbuiltin(attr)
 
 def traceMarker(stack):
-	d = {}
 	cadena = []
 	for i in range(len(stack)-1):
 		fi = stack[i]
-		t = "{}:{}".format(fi.filename, fi.lineno)
+		t = f"{fi.filename}:{fi.lineno}"
 		cadena.append(t)
-	d['traceMarker'] = cadena
+	d = {'traceMarker': cadena}
 	return str(d)
 
 def modMarker(mod, fn_name, args):
@@ -59,9 +58,7 @@ def modMarker(mod, fn_name, args):
 	"""
 	assert(fn_name == 'forward')
 	assert(len(args) > 0)
-	d = {}
-	d['mod'] = mod.__name__
-	d['strRepr'] = args[0].extra_repr()
+	d = {'mod': mod.__name__, 'strRepr': args[0].extra_repr()}
 	return str(d)
 
 def add_wrapper(mod, fn_name):
@@ -138,7 +135,7 @@ def argMarker(mod, op, args, kwargs):
 			# The arg could be torch.Size, which is a subclass of tuple
 			# Therefore, explicitly convert to tuple
 			a['value'] = tuple(arg)
-		
+
 		cadena['args'].append(a)
 
 	def scalar(arg, name=""):
@@ -160,7 +157,7 @@ def argMarker(mod, op, args, kwargs):
 		return (type(arg) is int) or (type(arg) is float) or (type(arg) is bool) or (arg is None) or (type(arg) is str)
 
 	def issequence(arg):
-		return isinstance(arg, list) or isinstance(arg, tuple)
+		return isinstance(arg, (list, tuple))
 
 	def foo(args, name):
 		#args should be an iterable sequence e.g. list or tuple

@@ -9,8 +9,7 @@ pyprof.nvtx.init()
 class Foo(torch.autograd.Function):
 	@staticmethod
 	def forward(ctx, in1, in2):
-		out = in1 + in2		#This could be a custom C/C++ function.
-		return out
+		return in1 + in2
 
 	@staticmethod
 	def backward(ctx, grad):

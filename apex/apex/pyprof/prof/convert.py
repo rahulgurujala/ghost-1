@@ -39,8 +39,9 @@ class Convert(OperatorLayerBase):
 		self.dtype = op
 
 	def params(self):
-		p = OrderedDict([('T', self.shape), ('stype', self.stype), ('dtype', self.dtype)])
-		return p
+		return OrderedDict(
+			[('T', self.shape), ('stype', self.stype), ('dtype', self.dtype)]
+		)
 
 	def op(self):
 		return self.op_
@@ -58,5 +59,6 @@ class Convert(OperatorLayerBase):
 		return 0
 
 	def bytes(self):
-		b = self.elems() * (Utility.typeToBytes(self.stype) + Utility.typeToBytes(self.dtype))
-		return b
+		return self.elems() * (
+			Utility.typeToBytes(self.stype) + Utility.typeToBytes(self.dtype)
+		)

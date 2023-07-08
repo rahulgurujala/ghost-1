@@ -48,7 +48,7 @@ class Bottleneck(nn.Module):
 	def forward(self, x):
 		identity = x
 
-		nvtx.range_push("layer:Bottleneck_{}".format(self.id))
+		nvtx.range_push(f"layer:Bottleneck_{self.id}")
 
 		nvtx.range_push("layer:Conv1")
 		out = self.conv1(x)
@@ -144,15 +144,30 @@ class ResNet(nn.Module):
 				norm_layer(planes * block.expansion),
 			)
 
-		layers = []
-		layers.append(block(self.inplanes, planes, stride, downsample, self.groups,
-							self.base_width, previous_dilation, norm_layer))
+		layers = [
+			block(
+				self.inplanes,
+				planes,
+				stride,
+				downsample,
+				self.groups,
+				self.base_width,
+				previous_dilation,
+				norm_layer,
+			)
+		]
 		self.inplanes = planes * block.expansion
-		for _ in range(1, blocks):
-			layers.append(block(self.inplanes, planes, groups=self.groups,
-								base_width=self.base_width, dilation=self.dilation,
-								norm_layer=norm_layer))
-
+		layers.extend(
+			block(
+				self.inplanes,
+				planes,
+				groups=self.groups,
+				base_width=self.base_width,
+				dilation=self.dilation,
+				norm_layer=norm_layer,
+			)
+			for _ in range(1, blocks)
+		)
 		return nn.Sequential(*layers)
 
 	def forward(self, x):

@@ -49,11 +49,10 @@ class Utility(object):
 			except:
 				return False
 
-		if type(marker) is dict:
-			keys  = marker.keys()
-			return ("mod" in keys) and ("op" in keys) and ("args" in keys)
-		else:
+		if type(marker) is not dict:
 			return False
+		keys  = marker.keys()
+		return ("mod" in keys) and ("op" in keys) and ("args" in keys)
 
 	@staticmethod
 	def isscalar(t):

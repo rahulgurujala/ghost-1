@@ -66,8 +66,5 @@ e.g. -c idx,kernel,sil''')
 		help="Width of columnated output.")
 
 	args = parser.parse_args()
-	if args.file is None:
-		args.file = sys.stdin
-	else:
-		args.file = openFile(args.file)
+	args.file = sys.stdin if args.file is None else openFile(args.file)
 	return args

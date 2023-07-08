@@ -47,7 +47,7 @@ def train_one_epoch(G: 'generator model',
     
     for iteration, data in enumerate(dataloader):
         start_time = time.time()
-        
+
         Xs_orig, Xs, Xt, same_person = data
 
         Xs_orig = Xs_orig.to(device)
@@ -63,31 +63,31 @@ def train_one_epoch(G: 'generator model',
 
         if args.diff_eq_same:
             same_person = diff_person
-    
+
         # generator training
         opt_G.zero_grad()
-        
+
         Y, Xt_attr = G(Xt, embed)
         Di = D(Y)
         ZY = netArc(F.interpolate(Y, [112, 112], mode='bilinear', align_corners=False))
-        
+
         if args.eye_detector_loss:
             Xt_eyes, Xt_heatmap_left, Xt_heatmap_right = detect_landmarks(Xt, model_ft)
             Y_eyes, Y_heatmap_left, Y_heatmap_right = detect_landmarks(Y, model_ft)
             eye_heatmaps = [Xt_heatmap_left, Xt_heatmap_right, Y_heatmap_left, Y_heatmap_right]
         else:
             eye_heatmaps = None
-            
+
         lossG, loss_adv_accumulated, L_adv, L_attr, L_id, L_rec, L_l2_eyes = compute_generator_losses(G, Y, Xt, Xt_attr, Di,
                                                                              embed, ZY, eye_heatmaps,loss_adv_accumulated, 
                                                                              diff_person, same_person, args)
-        
+
         with amp.scale_loss(lossG, opt_G) as scaled_loss:
             scaled_loss.backward()
         opt_G.step()
         if args.scheduler:
             scheduler_G.step()
-        
+
         # discriminator training
         opt_D.zero_grad()
         lossD = compute_discriminator_loss(D, Y, Xs, diff_person)
@@ -98,8 +98,8 @@ def train_one_epoch(G: 'generator model',
             opt_D.step()
         if args.scheduler:
             scheduler_D.step()
-        
-        
+
+
         batch_time = time.time() - start_time
 
         if iteration % args.show_step == 0:
@@ -110,10 +110,16 @@ def train_one_epoch(G: 'generator model',
                 images.extend([Xt_eyes_img, Yt_eyes_img])
             image = make_image_list(images)
             if args.use_wandb:
-                wandb.log({"gen_images":wandb.Image(image, caption=f"{epoch:03}" + '_' + f"{iteration:06}")})
+                wandb.log(
+                    {
+                        "gen_images": wandb.Image(
+                            image, caption=f"{epoch:03}_" + f"{iteration:06}"
+                        )
+                    }
+                )
             else:
                 cv2.imwrite('./images/generated_image.jpg', image[:,:,::-1])
-        
+
         if iteration % 10 == 0:
             print(f'epoch: {epoch}    {iteration} / {len(dataloader)}')
             print(f'lossD: {lossD.item()}    lossG: {lossG.item()} batch_time: {batch_time}s')
@@ -123,7 +129,7 @@ def train_one_epoch(G: 'generator model',
             print(f'loss_adv_accumulated: {loss_adv_accumulated}')
             if args.scheduler:
                 print(f'scheduler_G lr: {scheduler_G.get_last_lr()} scheduler_D lr: {scheduler_D.get_last_lr()}')
-        
+
         if args.use_wandb:
             if args.eye_detector_loss:
                 wandb.log({"loss_eyes": L_l2_eyes.item()}, commit=False)
@@ -133,32 +139,48 @@ def train_one_epoch(G: 'generator model',
                        "loss_adv": L_adv.item(),
                        "loss_attr": L_attr.item(),
                        "loss_rec": L_rec.item()})
-        
+
         if iteration % 5000 == 0:
             torch.save(G.state_dict(), f'./saved_models_{args.run_name}/G_latest.pth')
             torch.save(D.state_dict(), f'./saved_models_{args.run_name}/D_latest.pth')
 
-            torch.save(G.state_dict(), f'./current_models_{args.run_name}/G_' + str(epoch)+ '_' + f"{iteration:06}" + '.pth')
-            torch.save(D.state_dict(), f'./current_models_{args.run_name}/D_' + str(epoch)+ '_' + f"{iteration:06}" + '.pth')
+            torch.save(
+                G.state_dict(),
+                f'./current_models_{args.run_name}/G_{epoch}_'
+                + f"{iteration:06}"
+                + '.pth',
+            )
+            torch.save(
+                D.state_dict(),
+                f'./current_models_{args.run_name}/D_{epoch}_'
+                + f"{iteration:06}"
+                + '.pth',
+            )
 
         if (iteration % 250 == 0) and (args.use_wandb):
             ### Посмотрим как выглядит свап на трех конкретных фотках, чтобы проследить динамику
             G.eval()
 
             res1 = get_faceswap('examples/images/training//source1.png', 'examples/images/training//target1.png', G, netArc, device)
-            res2 = get_faceswap('examples/images/training//source2.png', 'examples/images/training//target2.png', G, netArc, device)  
+            res2 = get_faceswap('examples/images/training//source2.png', 'examples/images/training//target2.png', G, netArc, device)
             res3 = get_faceswap('examples/images/training//source3.png', 'examples/images/training//target3.png', G, netArc, device)
-            
+
             res4 = get_faceswap('examples/images/training//source4.png', 'examples/images/training//target4.png', G, netArc, device)
-            res5 = get_faceswap('examples/images/training//source5.png', 'examples/images/training//target5.png', G, netArc, device)  
+            res5 = get_faceswap('examples/images/training//source5.png', 'examples/images/training//target5.png', G, netArc, device)
             res6 = get_faceswap('examples/images/training//source6.png', 'examples/images/training//target6.png', G, netArc, device)
-            
+
             output1 = np.concatenate((res1, res2, res3), axis=0)
             output2 = np.concatenate((res4, res5, res6), axis=0)
-            
+
             output = np.concatenate((output1, output2), axis=1)
 
-            wandb.log({"our_images":wandb.Image(output, caption=f"{epoch:03}" + '_' + f"{iteration:06}")})
+            wandb.log(
+                {
+                    "our_images": wandb.Image(
+                        output, caption=f"{epoch:03}_" + f"{iteration:06}"
+                    )
+                }
+            )
 
             G.train()
 

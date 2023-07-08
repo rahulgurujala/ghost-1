@@ -43,12 +43,8 @@ class Data(object):
 		qaz = ""
 		for key,value in params.items():
 			if "type" not in key:
-				qaz += "{}={},".format(key,value)
+				qaz += f"{key}={value},"
 			else:
-				if type(value) is str:
-					qaz += "{},".format(Utility.typeToString(value))
-				else:
-					qaz += "{}".format(value)
-
+				qaz += f"{Utility.typeToString(value)}," if type(value) is str else f"{value}"
 		self.params = qaz.replace(" ", "")
 

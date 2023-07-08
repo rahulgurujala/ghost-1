@@ -18,10 +18,10 @@ class Adam(OperatorLayerBase):
 		self.args = args
 
 		assert(op == "adam")
-		assert (len(args) == 12) or (len(args) == 14)
-		w, hw, m, v, g = args[0:5]
+		assert len(args) in {12, 14}
+		w, hw, m, v, g = args[:5]
 		assert (w['shape'] == m['shape'] == v['shape'] == g['shape'])
-		assert (hw['shape'] == w['shape']) or (hw['shape'] == (0,))		#hw could be null
+		assert hw['shape'] in [w['shape'], (0,)]
 		assert (w['type'] == m['type'] == v['type'] == g['type'] == hw['type'] == "tensor")
 		assert (w['dtype'] == m['dtype'] == v['dtype'] == "float32")
 
@@ -29,8 +29,13 @@ class Adam(OperatorLayerBase):
 		self.g = g
 
 	def params(self):
-		p = OrderedDict([('T',self.w['shape']), ('wtype',self.w['dtype']), ('gtype',self.g['dtype'])])
-		return p
+		return OrderedDict(
+			[
+				('T', self.w['shape']),
+				('wtype', self.w['dtype']),
+				('gtype', self.g['dtype']),
+			]
+		)
 
 	def flops(self):
 		return 0

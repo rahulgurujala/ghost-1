@@ -11,14 +11,12 @@ def fill(x):
 
 """ reshape matrix into m-dimensional vectors: (h,w) -> (hw/m, m) """
 def reshape_1d(matrix, m):
-    # If not a nice multiple of m, fill with zeroes.
-    if matrix.shape[1] % m > 0:
-        mat = torch.cuda.FloatTensor(matrix.shape[0], matrix.shape[1] + (m-matrix.shape[1]%m)).fill_(0)
-        mat[:, :matrix.shape[1]] = matrix
-        shape = mat.shape
-        return mat.view(-1,m),shape
-    else:
+    if matrix.shape[1] % m <= 0:
         return matrix.view(-1,m), matrix.shape
+    mat = torch.cuda.FloatTensor(matrix.shape[0], matrix.shape[1] + (m-matrix.shape[1]%m)).fill_(0)
+    mat[:, :matrix.shape[1]] = matrix
+    shape = mat.shape
+    return mat.view(-1,m),shape
 
 """ return all possible m:n patterns in a 1d vector """
 valid_m4n2_1d_patterns = None
@@ -108,7 +106,7 @@ def compute_valid_2d_patterns(m,n):
     patterns = torch.zeros(m)
     patterns[:n] = 1
     patterns = list(set(permutations(patterns.tolist())))
-    patterns = patterns + patterns
+    patterns += patterns
     patterns = torch.Tensor(list(set(permutations(patterns,m))))
 
     valid = ((patterns.sum(dim=1) <= n).sum(dim=1) == m).nonzero().view(-1)
