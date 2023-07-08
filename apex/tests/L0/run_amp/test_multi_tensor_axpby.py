@@ -44,37 +44,39 @@ class TestMultiTensorAxpby(unittest.TestCase):
     # The tensor creation here is written for convenience, not speed.
     def axpby(self, sizea, sizeb, applier, repeat_tensors,
               x_type, y_type, out_type, inplace=False, nhwc=False):
-        self.overflow_buf.zero_()
-        sizea = sizea if isinstance(sizea, tuple) else (sizea,)
-        sizeb = sizeb if isinstance(sizeb, tuple) else (sizeb,)
-        t1 = torch.full(sizea, 1.0, device="cuda", dtype=torch.float32)
-        t2 = torch.full(sizeb, 1.0, device="cuda", dtype=torch.float32)
+      self.overflow_buf.zero_()
+      sizea = sizea if isinstance(sizea, tuple) else (sizea,)
+      sizeb = sizeb if isinstance(sizeb, tuple) else (sizeb,)
+      t1 = torch.full(sizea, 1.0, device="cuda", dtype=torch.float32)
+      t2 = torch.full(sizeb, 1.0, device="cuda", dtype=torch.float32)
 
-        def to_fmt(t, tp):
-            if nhwc:
-                return t.clone().to(tp, memory_format=torch.channels_last)
-            else:
-                return t.clone().to(tp)
+      def to_fmt(t, tp):
+          if nhwc:
+              return t.clone().to(tp, memory_format=torch.channels_last)
+          else:
+              return t.clone().to(tp)
 
-        y_list = []
-        for i in range(repeat_tensors):
-            y_list += [to_fmt(t1, y_type)*self.yval, to_fmt(t2, y_type)*self.yval]
+      y_list = []
+      for i in range(repeat_tensors):
+          y_list += [to_fmt(t1, y_type)*self.yval, to_fmt(t2, y_type)*self.yval]
 
-        x_list = [to_fmt(x, x_type)*(self.xval/self.yval) for x in y_list]
+      x_list = [to_fmt(x, x_type)*(self.xval/self.yval) for x in y_list]
 
-        if inplace:
-            out_list = y_list
-        else:
-            out_list = [to_fmt(out, out_type)*3.0 for out in y_list]
+      if inplace:
+          out_list = y_list
+      else:
+          out_list = [to_fmt(out, out_type)*3.0 for out in y_list]
 
-        applier(multi_tensor_axpby, self.overflow_buf, [x_list, y_list, out_list], self.a, self.b, -1)
+      applier(multi_tensor_axpby, self.overflow_buf, [x_list, y_list, out_list], self.a, self.b, -1)
 
-        self.assertTrue(all([torch.allclose(out, self.ref.to(out_type)) for out in out_list]),
-                        msg="{} {} {} {} {} {} {}".format(sizea, sizeb, repeat_tensors,
-                        x_type, y_type, out_type, inplace))
-        self.assertTrue(self.overflow_buf.item() == 0,
-                        msg="{} {} {} {} {} {} {}".format(sizea, sizeb, repeat_tensors,
-                        x_type, y_type, out_type, inplace))
+      self.assertTrue(
+          all(torch.allclose(out, self.ref.to(out_type)) for out in out_list),
+          msg="{} {} {} {} {} {} {}".format(sizea, sizeb, repeat_tensors, x_type,
+                                            y_type, out_type, inplace),
+      )
+      self.assertTrue(self.overflow_buf.item() == 0,
+                      msg="{} {} {} {} {} {} {}".format(sizea, sizeb, repeat_tensors,
+                      x_type, y_type, out_type, inplace))
 
     # def find_inf(self, sizea, sizeb, applier, repeat_tensors, in_type, out_type, t, ind, val, inplace=False):
     #     self.overflow_buf.zero_()
@@ -99,35 +101,32 @@ class TestMultiTensorAxpby(unittest.TestCase):
 
     @unittest.skipIf(disabled, "amp_C is unavailable")
     def test_fuzz(self):
-        input_size_pairs = (
-            (7777*77, 555*555),
-            (777, 555),
-            (555, 2048*32+1),
-            (2048*32+1, 555),
-            (555, 2048*32),
-            (2048*32, 555),
-            (33333, 555),
-            (555, 33333))
-        appliers = (
-            MultiTensorApply(2048*32),
-            MultiTensorApply(333),
-            MultiTensorApply(33333))
-        repeat_tensors = (
-            1,
-            55)
+      input_size_pairs = (
+          (7777*77, 555*555),
+          (777, 555),
+          (555, 2048*32+1),
+          (2048*32+1, 555),
+          (555, 2048*32),
+          (2048*32, 555),
+          (33333, 555),
+          (555, 33333))
+      appliers = (
+          MultiTensorApply(2048*32),
+          MultiTensorApply(333),
+          MultiTensorApply(33333))
+      repeat_tensors = (
+          1,
+          55)
 
-        for sizea, sizeb in input_size_pairs:
-          for applier in appliers:
-            for repeat in repeat_tensors:
-              for x_type in (torch.float32, torch.float16):
-                for y_type in (torch.float32, torch.float16):
-                  for out_type in (torch.float32, torch.float16):
-                    for inplace in (True, False):
-                      if inplace is True and (y_type is not out_type):
-                        continue
-                      else:
-                        self.axpby(sizea, sizeb, applier, repeat,
-                                   x_type, y_type, out_type, inplace=inplace)
+      for sizea, sizeb in input_size_pairs:
+        for applier, repeat in it.product(appliers, repeat_tensors):
+          for x_type in (torch.float32, torch.float16):
+            for y_type in (torch.float32, torch.float16):
+              for out_type in (torch.float32, torch.float16):
+                for inplace in (True, False):
+                  if inplace is not True or y_type is out_type:
+                    self.axpby(sizea, sizeb, applier, repeat,
+                               x_type, y_type, out_type, inplace=inplace)
                       # self.find_inf(sizea, sizeb, applier, repeat, in_type, out_type,
                       #               0, 0, float('nan'), inplace=inplace)
                       # self.find_inf(sizea, sizeb, applier, repeat, in_type, out_type,
@@ -138,35 +137,32 @@ class TestMultiTensorAxpby(unittest.TestCase):
     @unittest.skipIf(disabled, "amp_C is unavailable")
     @unittest.skipIf(not try_nhwc, "torch version is 1.4 or earlier, may not support nhwc")
     def test_fuzz_nhwc(self):
-        input_size_pairs = (
-            ((7, 77, 7, 77), (5, 55, 5, 55)),
-            ((1, 1, 777, 1), (1, 1, 555, 1)),
-            ((5, 47, 5, 55), (1, 1, 1, 2048*32 + 1)),
-            ((1, 1, 1, 2048*32 + 1), (55, 47, 5, 55)),
-            ((555, 1, 1, 1), (32, 8, 32, 8)),
-            ((32, 8, 32, 8), (55, 47, 5, 55)),
-            ((1, 1, 33333, 1), (55, 47, 55, 5)),
-            ((55, 47, 55, 5), (1, 1, 33333, 1)))
-        appliers = (
-            MultiTensorApply(2048*32),
-            MultiTensorApply(333),
-            MultiTensorApply(33333))
-        repeat_tensors = (
-            1,
-            55)
+      input_size_pairs = (
+          ((7, 77, 7, 77), (5, 55, 5, 55)),
+          ((1, 1, 777, 1), (1, 1, 555, 1)),
+          ((5, 47, 5, 55), (1, 1, 1, 2048*32 + 1)),
+          ((1, 1, 1, 2048*32 + 1), (55, 47, 5, 55)),
+          ((555, 1, 1, 1), (32, 8, 32, 8)),
+          ((32, 8, 32, 8), (55, 47, 5, 55)),
+          ((1, 1, 33333, 1), (55, 47, 55, 5)),
+          ((55, 47, 55, 5), (1, 1, 33333, 1)))
+      appliers = (
+          MultiTensorApply(2048*32),
+          MultiTensorApply(333),
+          MultiTensorApply(33333))
+      repeat_tensors = (
+          1,
+          55)
 
-        for sizea, sizeb in input_size_pairs:
-          for applier in appliers:
-            for repeat in repeat_tensors:
-              for x_type in (torch.float32, torch.float16):
-                for y_type in (torch.float32, torch.float16):
-                  for out_type in (torch.float32, torch.float16):
-                    for inplace in (True, False):
-                      if inplace is True and (y_type is not out_type):
-                        continue
-                      else:
-                        self.axpby(sizea, sizeb, applier, repeat,
-                                   x_type, y_type, out_type, inplace=inplace, nhwc=True)
+      for sizea, sizeb in input_size_pairs:
+        for applier, repeat in it.product(appliers, repeat_tensors):
+          for x_type in (torch.float32, torch.float16):
+            for y_type in (torch.float32, torch.float16):
+              for out_type in (torch.float32, torch.float16):
+                for inplace in (True, False):
+                  if inplace is not True or y_type is out_type:
+                    self.axpby(sizea, sizeb, applier, repeat,
+                               x_type, y_type, out_type, inplace=inplace, nhwc=True)
                       # self.find_inf(sizea, sizeb, applier, repeat, in_type, out_type,
                       #               0, 0, float('nan'), inplace=inplace)
                       # self.find_inf(sizea, sizeb, applier, repeat, in_type, out_type,

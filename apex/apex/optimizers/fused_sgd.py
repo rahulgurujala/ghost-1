@@ -79,11 +79,11 @@ class FusedSGD(Optimizer):
                  materialize_master_grads=True,
                  set_grad_none=False):
         if lr is not required and lr < 0.0:
-            raise ValueError("Invalid learning rate: {}".format(lr))
+            raise ValueError(f"Invalid learning rate: {lr}")
         if momentum < 0.0:
-            raise ValueError("Invalid momentum value: {}".format(momentum))
+            raise ValueError(f"Invalid momentum value: {momentum}")
         if weight_decay < 0.0:
-            raise ValueError("Invalid weight_decay value: {}".format(weight_decay))
+            raise ValueError(f"Invalid weight_decay value: {weight_decay}")
 
         defaults = dict(lr=lr, momentum=momentum, dampening=dampening,
                         weight_decay=weight_decay, nesterov=nesterov)
@@ -142,10 +142,7 @@ class FusedSGD(Optimizer):
             closure (callable, optional): A closure that reevaluates the model
                 and returns the loss.
         """
-        loss = None
-        if closure is not None:
-            loss = closure()
-
+        loss = closure() if closure is not None else None
         explicit_master_params = (hasattr(self, "_amp_stash") and
                                   hasattr(self._amp_stash, "fp32_from_fp16_groups"))
 
@@ -204,7 +201,7 @@ class FusedSGD(Optimizer):
                 launch_sets = [[fp16_grads, fp16_params, fp16_momentums],
                                [fp32_grads, fp32_params, fp32_momentums]]
 
-            for s, (launch_set, first_run) in enumerate(zip(launch_sets, first_runs)):
+            for launch_set, first_run in zip(launch_sets, first_runs):
                 assert len(launch_set[0]) == len(launch_set[1])
                 assert len(launch_set[0]) == len(launch_set[2])
                 if len(launch_set[0]) > 0:

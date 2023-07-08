@@ -45,12 +45,12 @@ class FusedAdam(torch.optim.Optimizer):
 
         self._use_multi_tensor = False
         if use_mt:
-            if not multi_tensor_applier.available:
-                print("Warning:  multi_tensor_applier is unavailable")
-            else:
+            if multi_tensor_applier.available:
                 self._use_multi_tensor = True
                 self._overflow_buf = torch.cuda.IntTensor([0])
 
+            else:
+                print("Warning:  multi_tensor_applier is unavailable")
         self._amp_scale_adjustment = amp_scale_adjustment
 
         if amsgrad:
@@ -76,10 +76,7 @@ class FusedAdam(torch.optim.Optimizer):
             scale (float, optional): factor to divide gradient tensor values
                 by before applying to weights. (default: 1)
         """
-        loss = None
-        if closure is not None:
-            loss = closure()
-
+        loss = closure() if closure is not None else None
         if hasattr(self, "_amp_stash"):
             grads = self._amp_stash.grads
             output_params = self._amp_stash.output_params
@@ -88,20 +85,17 @@ class FusedAdam(torch.optim.Optimizer):
 
         if grads is None:
             grads_group = [None]*len(self.param_groups)
-        # backward compatibility
-        # assuming a list/generator of parameter means single group
-        elif isinstance(grads, types.GeneratorType):
-            grads_group = [grads]
-        elif type(grads[0])!=list:
+        elif isinstance(grads, types.GeneratorType) or type(grads[0]) != list:
             grads_group = [grads]
         else:
             grads_group = grads
 
         if output_params is None:
             output_params_group = [None]*len(self.param_groups)
-        elif isinstance(output_params, types.GeneratorType):
-            output_params_group = [output_params]
-        elif type(output_params[0])!=list:
+        elif (
+            isinstance(output_params, types.GeneratorType)
+            or type(output_params[0]) != list
+        ):
             output_params_group = [output_params]
         else:
             output_params_group = output_params
@@ -126,10 +120,7 @@ class FusedAdam(torch.optim.Optimizer):
             bias_correction = 1 if group['bias_correction'] else 0
 
             if self._use_multi_tensor:
-                if output_params:
-                    tensorlists = [[],[],[],[],[]]
-                else:
-                    tensorlists = [[],[],[],[]]
+                tensorlists = [[],[],[],[],[]] if output_params else [[],[],[],[]]
                 tensordevice = None
 
             for p, grad, output_param in zip(group['params'], grads_this_group, output_params_this_group):

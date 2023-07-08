@@ -36,11 +36,8 @@ def scalar_python_val(x):
     if hasattr(x, 'item'):
         return x.item()
     else:
-        if isinstance(x, torch.autograd.Variable):
-            return x.data[0]
-        else:
-            return x[0]
+        return x.data[0] if isinstance(x, torch.autograd.Variable) else x[0]
 
 # Accounts for the possibility that some ops may be removed from a namespace.
 def filter_attrs(module, attrs):
-    return list(attrname for attrname in attrs if hasattr(module, attrname))
+    return [attrname for attrname in attrs if hasattr(module, attrname)]

@@ -31,8 +31,14 @@ class Embedding(OperatorLayerBase):
 		return
 
 	def params(self):
-		p = OrderedDict([('I', self.ishape), ('itype', self.itype), ('E', self.eshape), ('etype', self.etype)])
-		return p
+		return OrderedDict(
+			[
+				('I', self.ishape),
+				('itype', self.itype),
+				('E', self.eshape),
+				('etype', self.etype),
+			]
+		)
 
 	def op(self):
 		return self.op_

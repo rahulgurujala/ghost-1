@@ -34,8 +34,7 @@ def parseArgs():
 		choices=["adam", "sgd"],
 		help="Optimizer.")
 
-	args = parser.parse_args()
-	return args
+	return parser.parse_args()
 
 d = {
 	"alexnet":				{'H': 224, 'W': 224, 'opts': {}},
@@ -115,7 +114,7 @@ def main():
 		assert False
 
 	#Warm up without profiler
-	for i in range(2):
+	for _ in range(2):
 		output = net(x)
 		loss = criterion(output, target)
 		optimizer.zero_grad()

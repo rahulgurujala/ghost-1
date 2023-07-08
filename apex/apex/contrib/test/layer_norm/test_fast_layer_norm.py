@@ -101,11 +101,11 @@ class TestFastLayerNorm(unittest.TestCase):
         hidden_size = 1024
         epsilon = 1e-5
 
-        x = torch.randn((s*b,hidden_size), dtype=dtype, device=device)  
-        beta = torch.randn(hidden_size, dtype=dtype, device=device)  
+        x = torch.randn((s*b,hidden_size), dtype=dtype, device=device)
+        beta = torch.randn(hidden_size, dtype=dtype, device=device)
         gamma = torch.randn(hidden_size, dtype=dtype, device=device)
         dy = torch.randn_like(x)
- 
+
 
         stream = torch.cuda.Stream()
         with torch.cuda.stream(stream):
@@ -113,12 +113,12 @@ class TestFastLayerNorm(unittest.TestCase):
             timer = GPUTimer(stream)
 
             #warmup
-            for r in range(runs):
+            for _ in range(runs):
                 y, mu, rsigma = fln.ln_fwd(x, gamma, beta, 1e-5)
-           
-           
+
+
             timer.start()
-            for r in range(runs):
+            for _ in range(runs):
                 y, mu, rsigma = fln.ln_fwd(x, gamma, beta, 1e-5)
             timer.stop()
             timer.sync()
@@ -133,10 +133,10 @@ class TestFastLayerNorm(unittest.TestCase):
 
             ms_fwd = timer.millis() / runs
             print('[FWD] Time: {:.4f}ms Throughput: {:.4f} GB/sec'.format(ms_fwd, total_bytes_fwd * 1e-6 / ms_fwd ))
-         
+
 
             timer.start()
-            for r in range(runs):
+            for _ in range(runs):
                 dx, dgamma, dbeta = fln.ln_bwd(dy, x, mu, rsigma, gamma)
             timer.stop()
             timer.sync()

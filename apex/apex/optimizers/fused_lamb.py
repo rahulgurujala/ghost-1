@@ -72,15 +72,14 @@ class FusedLAMB(torch.optim.Optimizer):
                         grad_averaging=grad_averaging,
                         max_grad_norm=max_grad_norm)
         super(FusedLAMB, self).__init__(params, defaults)
-        if multi_tensor_applier.available:
-            import amp_C
-            self.multi_tensor_l2norm=amp_C.multi_tensor_l2norm
-            # Skip buffer
-            self._dummy_overflow_buf = torch.tensor([0], dtype=torch.int, device=self.param_groups[0]["params"][0].device)
-            self.multi_tensor_lamb = amp_C.multi_tensor_lamb
-        else:
+        if not multi_tensor_applier.available:
             raise RuntimeError('apex.optimizers.FusedLAMB requires cuda extensions')
 
+        import amp_C
+        self.multi_tensor_l2norm=amp_C.multi_tensor_l2norm
+        # Skip buffer
+        self._dummy_overflow_buf = torch.tensor([0], dtype=torch.int, device=self.param_groups[0]["params"][0].device)
+        self.multi_tensor_lamb = amp_C.multi_tensor_lamb
         self.adam_w_mode = 1 if adam_w_mode else 0
         self.set_grad_none = set_grad_none
         self.use_nvlamb = use_nvlamb
@@ -100,10 +99,7 @@ class FusedLAMB(torch.optim.Optimizer):
             closure (callable, optional): A closure that reevaluates the model
                 and returns the loss.
         """
-        loss = None
-        if closure is not None:
-            loss = closure()
-
+        loss = closure() if closure is not None else None
         # create separate grad lists for fp32 and fp16 params
         g_all_32, g_all_16 = [], []
         for group in self.param_groups:
@@ -120,11 +116,11 @@ class FusedLAMB(torch.optim.Optimizer):
         device = self.param_groups[0]["params"][0].device
         g_norm_32, g_norm_16 = torch.zeros(1, device=device), torch.zeros(1, device=device)
         # compute grad norm for two lists
-        if len(g_all_32) > 0:
+        if g_all_32:
             g_norm_32 = multi_tensor_applier(self.multi_tensor_l2norm,
                                              self._dummy_overflow_buf,
                                              [g_all_32], False)[0]
-        if len(g_all_16) > 0:
+        if g_all_16:
             g_norm_16 = multi_tensor_applier(self.multi_tensor_l2norm,
                                              self._dummy_overflow_buf,
                                              [g_all_16], False)[0]
@@ -179,7 +175,7 @@ class FusedLAMB(torch.optim.Optimizer):
                 else:
                     raise RuntimeError('FusedLAMB only support fp16 and fp32.')
 
-            if(len(g_16) > 0):
+            if g_16:
                 multi_tensor_applier(self.multi_tensor_lamb,
                                      self._dummy_overflow_buf,
                                      [g_16, p_16, m_16, v_16],
@@ -195,7 +191,7 @@ class FusedLAMB(torch.optim.Optimizer):
                                      global_grad_norm,
                                      max_grad_norm,
                                      self.use_nvlamb)
-            if(len(g_32) > 0):
+            if g_32:
                 multi_tensor_applier(self.multi_tensor_lamb,
                                      self._dummy_overflow_buf,
                                      [g_32, p_32, m_32, v_32],

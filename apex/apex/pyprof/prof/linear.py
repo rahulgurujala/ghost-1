@@ -51,7 +51,7 @@ class Linear(OperatorLayerBase):
 
 		# M, N, K
 		#n = Utility.numElems(x[0:-1])
-		n = self.x[0:-1]
+		n = self.x[:-1]
 		k = self.x[-1]
 		m,k1 = self.w
 		assert (k == k1)
@@ -152,20 +152,18 @@ class Linear(OperatorLayerBase):
 		k = self.k
 
 		if self.op_ == "linear":
-			if self.dir == "fprop":
+			if (
+				self.dir != "fprop"
+				and self.dir == "bprop"
+				and self.sub in [0, 1]
+				or self.dir == "fprop"
+			):		#dgrad (most likely)
 				f = m * n * k * 2
 				b = m*n + m*k + n*k * Utility.typeToBytes(self.type)
 			elif self.dir == "bprop":
-				if self.sub == 0:		#dgrad (most likely)
-					f = m * n * k * 2
-					b = m*n + m*k + n*k * Utility.typeToBytes(self.type)
-				elif self.sub == 1:	#wgrad (most likely)
-					f = m * n * k * 2
-					b = m*n + m*k + n*k * Utility.typeToBytes(self.type)
-				else:
-					#This happens when there are additional kernels for reduction
-					f = 0
-					b = 0
+				#This happens when there are additional kernels for reduction
+				f = 0
+				b = 0
 			else:
 				assert False
 

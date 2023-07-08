@@ -35,7 +35,7 @@ class Properties(object):
             if k in self.options:
                 self.options[k] = v
             else:
-                raise ValueError("Tried to set unexpected option {}".format(k))
+                raise ValueError(f"Tried to set unexpected option {k}")
     """
     The members of "options" are not direct attributes of self, so access attempts
     will roll down to __getattr__.  This borrows from the logic in torch.nn.Module.
@@ -45,8 +45,9 @@ class Properties(object):
             options =  self.__dict__["options"]
             if name in options:
                 return options[name]
-        raise AttributeError("'{}' object has no attribute '{}'".format(
-            type(self).__name__, name))
+        raise AttributeError(
+            f"'{type(self).__name__}' object has no attribute '{name}'"
+        )
 
     def __setattr__(self, name, value):
         if "options" in self.__dict__:
@@ -56,11 +57,15 @@ class Properties(object):
                     if self.opt_level == "O1" and value is not None:
                         if value is not False:
                             if value is not torch.float32:
-                                warn_or_err("O1 inserts casts around Torch functions rather than "
-                                            "model weights, so with O1, the model weights themselves "
-                                            "should remain FP32. If you wish to cast the model to a "
-                                            "different type, use opt_level='O2' or 'O3'. " +
-                                            "cast_model_type was {}".format(value))
+                                warn_or_err(
+                                    (
+                                        "O1 inserts casts around Torch functions rather than "
+                                        "model weights, so with O1, the model weights themselves "
+                                        "should remain FP32. If you wish to cast the model to a "
+                                        "different type, use opt_level='O2' or 'O3'. "
+                                        + f"cast_model_type was {value}"
+                                    )
+                                )
                     self.options[name] = value
                 elif name == "patch_torch_functions":
                     if self.opt_level != "O1" and value:
@@ -69,17 +74,21 @@ class Properties(object):
                     self.options[name] = value
                 elif name == "keep_batchnorm_fp32":
                     if self.opt_level == "O1" and value is not None:
-                        warn_or_err("With opt_level O1, batchnorm functions are automatically patched "
-                                    "to run in FP32, so keep_batchnorm_fp32 should be None." +
-                                    " keep_batchnorm_fp32 was {}".format(value))
+                        warn_or_err(
+                            (
+                                "With opt_level O1, batchnorm functions are automatically patched "
+                                "to run in FP32, so keep_batchnorm_fp32 should be None."
+                                + f" keep_batchnorm_fp32 was {value}"
+                            )
+                        )
                     if value == "False":
                         self.options[name] = False
                     elif value == "True":
                         self.options[name] = True
                     else:
-                        assert (value is True or value is False or value is None),\
-                            "keep_batchnorm_fp32 must be a boolean, the string 'True' or 'False', "\
-                            "or None, found keep_batchnorm_fp32={}".format(value)
+                        assert (
+                            value is True or value is False or value is None
+                        ), f"keep_batchnorm_fp32 must be a boolean, the string 'True' or 'False', or None, found keep_batchnorm_fp32={value}"
                         self.options[name] = value
                 elif name == "master_weights":
                     if self.opt_level == "O1" and value is not None:
@@ -87,10 +96,7 @@ class Properties(object):
                                     "With O1, your model weights themselves should be FP32.")
                     self.options[name] = value
                 elif name == "loss_scale":
-                    if value == "dynamic":
-                        self.options[name] = value
-                    else:
-                        self.options[name] = float(value)
+                    self.options[name] = value if value == "dynamic" else float(value)
                 else:
                     self.options[name] = value
         else:
@@ -309,26 +315,20 @@ def initialize(
     _amp_state.verbosity = verbosity
 
     if not enabled:
-        if optimizers is None:
-            return models
-        else:
-            return models, optimizers
-
+        return models if optimizers is None else (models, optimizers)
     if not torch.backends.cudnn.enabled:
         raise RuntimeError(
             "Amp requires torch.backends.cudnn.enabled = True")
 
     if opt_level not in opt_levels:
         raise RuntimeError(
-            "Unexpected optimization level {}. ".format(opt_level) +
-            "Options are 'O0', 'O1', 'O2', 'O3'.  Note that in `O0`, `O1`, etc., the prefix O is the letter O, " +
-            "not the number zero.")
-    else:
-        _amp_state.opt_properties = opt_levels[opt_level](_amp_state.opt_properties)
-        maybe_print("Selected optimization level {}".format(opt_levels[opt_level].brief), True)
-        maybe_print("Defaults for this optimization level are:", True)
-        for k, v in _amp_state.opt_properties.options.items():
-            maybe_print("{:22} : {}".format(k, v), True)
+            f"Unexpected optimization level {opt_level}. Options are 'O0', 'O1', 'O2', 'O3'.  Note that in `O0`, `O1`, etc., the prefix O is the letter O, not the number zero."
+        )
+    _amp_state.opt_properties = opt_levels[opt_level](_amp_state.opt_properties)
+    maybe_print(f"Selected optimization level {opt_levels[opt_level].brief}", True)
+    maybe_print("Defaults for this optimization level are:", True)
+    for k, v in _amp_state.opt_properties.options.items():
+        maybe_print("{:22} : {}".format(k, v), True)
 
     _amp_state.min_loss_scale = min_loss_scale
     _amp_state.max_loss_scale = max_loss_scale
@@ -373,11 +373,12 @@ def state_dict(destination=None):
 def load_state_dict(state_dict):
     # Check if state_dict containes the same number of loss_scalers as current setup
     if len(state_dict) != len(_amp_state.loss_scalers):
-        print('Warning: state_dict contains {} entries, while {} loss_scalers are used'.format(
-            len(state_dict), len(_amp_state.loss_scalers)))
+        print(
+            f'Warning: state_dict contains {len(state_dict)} entries, while {len(_amp_state.loss_scalers)} loss_scalers are used'
+        )
 
     state_dict = state_dict.copy()
-    
+
     nb_loss_scalers = len(_amp_state.loss_scalers)
     unexpected_keys = []
     # Initialize idx outside, since unexpected_keys will increase it if enumerate is used
@@ -387,17 +388,18 @@ def load_state_dict(state_dict):
             unexpected_keys.append(key)
         else:
             if idx > (nb_loss_scalers - 1):
-                print('Skipping loss_scaler[{}], since num_losses was set to {}'.format(
-                    idx, nb_loss_scalers))
+                print(
+                    f'Skipping loss_scaler[{idx}], since num_losses was set to {nb_loss_scalers}'
+                )
                 break
             _amp_state.loss_scalers[idx]._loss_scale = state_dict[key]['loss_scale']
             _amp_state.loss_scalers[idx]._unskipped = state_dict[key]['unskipped']
             idx += 1
 
-    if len(unexpected_keys) > 0:
+    if unexpected_keys:
         raise RuntimeError(
-            'Error(s) in loading state_dict. Unexpected key(s) in state_dict: {}. '.format(
-                ', '.join('"{}"'.format(k) for k in unexpected_keys)))
+            f"""Error(s) in loading state_dict. Unexpected key(s) in state_dict: {', '.join(f'"{k}"' for k in unexpected_keys)}. """
+        )
 
 
 # TODO:  is this necessary/useful?

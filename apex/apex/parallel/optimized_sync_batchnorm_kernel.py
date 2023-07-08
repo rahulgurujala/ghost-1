@@ -35,7 +35,7 @@ class SyncBatchnormFunction(Function):
 
                 count_t = torch.empty(1, dtype=mean.dtype, device=mean.device).fill_(count)
                 combined = torch.cat([mean.view(-1), var_biased.view(-1), count_t], dim=0)
-                combined_list = [torch.empty_like(combined) for k in range(world_size)]
+                combined_list = [torch.empty_like(combined) for _ in range(world_size)]
                 torch.distributed.all_gather(combined_list, combined, process_group)
                 combined = torch.stack(combined_list, dim=0)
                 mean_all, invstd_all, count_all = torch.split(combined, num_channels, dim=1)
@@ -48,7 +48,9 @@ class SyncBatchnormFunction(Function):
                 var = var_biased * (count) / (count-1)
 
             if count == 1 and world_size < 2:
-                raise ValueError('Expected more than 1 value per channel when training, got input size{}'.format(input.size()))
+                raise ValueError(
+                    f'Expected more than 1 value per channel when training, got input size{input.size()}'
+                )
 
             r_m_inc = mean if running_mean.dtype != torch.float16 else mean.half()
             r_v_inc = var if running_variance.dtype != torch.float16 else var.half()
@@ -64,12 +66,13 @@ class SyncBatchnormFunction(Function):
         ctx.world_size = world_size
         ctx.fuse_relu = fuse_relu
 
-        if channel_last:
-            out = syncbn.batchnorm_forward_c_last(input, z, mean, inv_std, weight, bias, fuse_relu)
-        else:
-            out = syncbn.batchnorm_forward(input, mean, inv_std, weight, bias)
-
-        return out
+        return (
+            syncbn.batchnorm_forward_c_last(
+                input, z, mean, inv_std, weight, bias, fuse_relu
+            )
+            if channel_last
+            else syncbn.batchnorm_forward(input, mean, inv_std, weight, bias)
+        )
 
     @staticmethod
     def backward(ctx, grad_output):

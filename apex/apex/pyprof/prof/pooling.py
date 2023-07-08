@@ -10,10 +10,7 @@ class MaxPool2d(object):
 
 		def convert2Tuple(arg):
 			assert (arg['type'] in ["int", "tuple"])
-			if arg['type'] == "int":
-				return (arg['value'], arg['value'])
-			else:
-				return arg['value']
+			return (arg['value'], arg['value']) if arg['type'] == "int" else arg['value']
 
 		mod = marker['mod']
 		op = marker['op']
@@ -54,6 +51,6 @@ class MaxPool2d(object):
 		elif any(x['name'] == "padding" for x in args):
 			p = list(filter(lambda x : x['name'] == "padding", args))[0]
 			p = convert2Tuple(p)
-		
+
 		params = OrderedDict([('T', i), ('K', k), ('s',s), ('p',p), ('type', t)])
 		return params

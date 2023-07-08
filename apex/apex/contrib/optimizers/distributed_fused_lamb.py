@@ -119,7 +119,7 @@ class DistributedFusedLAMB(torch.optim.Optimizer):
         self._e5m2_allgather = e5m2_allgather
         self._verbose = verbose
         self._L2_grad_norm = None
-        
+
         self._current_process_group = c10d._get_default_group()
         self._available_ranks = list(c10d._pg_group_ranks[self._current_process_group].keys())
         self._group_size = torch.cuda.device_count() if dwu_group_size <= 0 else dwu_group_size
@@ -161,13 +161,14 @@ class DistributedFusedLAMB(torch.optim.Optimizer):
             self._ar_st = [torch.cuda.Stream() for _ in range(self._num_ar_pg)]
             #for ar_pg in self._ar_pg:
             #    torch.distributed.all_reduce(self._overflow_buf,group=ar_pg)
-        rs_ranks = []
-        for group_i in range(self._num_groups):
-            rs_ranks.append([group_i*self._group_size+j for j in range(self._group_size)])
+        rs_ranks = [
+            [group_i * self._group_size + j for j in range(self._group_size)]
+            for group_i in range(self._num_groups)
+        ]
         self._rs_pg = []
         for group_i in range(self._num_groups):
             ranks = rs_ranks[group_i]
-            for i in range(self._num_rs_pg):
+            for _ in range(self._num_rs_pg):
                 grp = torch.distributed.new_group(ranks=ranks)
                 if torch.distributed.get_rank() in ranks:
                     self._rs_pg.append(grp)
@@ -186,13 +187,13 @@ class DistributedFusedLAMB(torch.optim.Optimizer):
             self._ag_pg = []
             for group_i in range(self._num_groups):
                 ranks = rs_ranks[group_i]
-                for i in range(self._num_ag_pg):
+                for _ in range(self._num_ag_pg):
                     grp = torch.distributed.new_group(ranks=ranks)
                     if torch.distributed.get_rank() in ranks:
                         self._ag_pg.append(grp)
             self._ag_st = [torch.cuda.Stream() for _ in range(self._num_ag_pg)]
-            #for ag_pg in self._ag_pg:
-            #    torch.distributed.all_reduce(self._overflow_buf,group=ag_pg)
+                #for ag_pg in self._ag_pg:
+                #    torch.distributed.all_reduce(self._overflow_buf,group=ag_pg)
         self._l2_grad_norm_st = torch.cuda.Stream()
         self._completion_st = torch.cuda.Stream()
         self._step.record_stream(self._completion_st)

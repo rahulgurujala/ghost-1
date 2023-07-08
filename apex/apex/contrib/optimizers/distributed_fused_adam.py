@@ -495,11 +495,9 @@ class DistributedFusedAdam(torch.optim.Optimizer):
         self._grads_generated[param_i]=True
         if not self._last_step:
             if self._overlap_reductions:
-                flush_block = self._get_flush_block()
-                while flush_block:
+                while flush_block := self._get_flush_block():
                     block_id = flush_block[0] // self._block_size
                     self._pipeline_block_reductions(block_id)
-                    flush_block = self._get_flush_block()
 
     def set_global_scale(self, global_scale):
         """Set global scale.
@@ -538,7 +536,7 @@ class DistributedFusedAdam(torch.optim.Optimizer):
                 out_p,
                 stride,
                 1 if clear else 0)
-        self._has_overflow = False if self._overflow_buf.item() == 0 else True
+        self._has_overflow = self._overflow_buf.item() != 0
         return self._has_overflow
 
     @property
@@ -575,10 +573,7 @@ class DistributedFusedAdam(torch.optim.Optimizer):
         self._grads_generated = [False]*len(self._grads_info)
 
     def step(self, closure=None):
-        loss = None
-        if closure is not None:
-            loss = closure()
-
+        loss = closure() if closure is not None else None
         self._pipeline_step()
 
         with torch.cuda.stream(self._completion_st):
@@ -604,13 +599,12 @@ class DistributedFusedAdam(torch.optim.Optimizer):
             checkpoint['optimizer'] = optimizer.state_dict()
             torch.save(checkpoint, "saved.pth")
         """
-        # save step, master weights and first/second moments
-        state_dict = {}
-        state_dict['step'] = self._step
-        state_dict['fp32_p'] = self._fp32_p
-        state_dict['fp32_m'] = self._fp32_m
-        state_dict['fp32_v'] = self._fp32_v
-        return state_dict
+        return {
+            'step': self._step,
+            'fp32_p': self._fp32_p,
+            'fp32_m': self._fp32_m,
+            'fp32_v': self._fp32_v,
+        }
 
     def load_state_dict(self, state_dict):
         """

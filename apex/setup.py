@@ -11,7 +11,9 @@ import os
 this_dir = os.path.dirname(os.path.abspath(__file__))
 
 def get_cuda_bare_metal_version(cuda_dir):
-    raw_output = subprocess.check_output([cuda_dir + "/bin/nvcc", "-V"], universal_newlines=True)
+    raw_output = subprocess.check_output(
+        [f"{cuda_dir}/bin/nvcc", "-V"], universal_newlines=True
+    )
     output = raw_output.split()
     release_idx = output.index("release") + 1
     release = output[release_idx].split(".")
@@ -38,7 +40,7 @@ if not torch.cuda.is_available():
         else:
             os.environ["TORCH_CUDA_ARCH_LIST"] = "6.0;6.1;6.2;7.0;7.5"
 
-print("\n\ntorch.__version__  = {}\n\n".format(torch.__version__))
+print(f"\n\ntorch.__version__  = {torch.__version__}\n\n")
 TORCH_MAJOR = int(torch.__version__.split('.')[0])
 TORCH_MINOR = int(torch.__version__.split('.')[1])
 
@@ -68,8 +70,9 @@ else:
 
 if "--cpp_ext" in sys.argv or "--cuda_ext" in sys.argv:
     if TORCH_MAJOR == 0:
-        raise RuntimeError("--cpp_ext requires Pytorch 1.0 or later, "
-                           "found torch.__version__ = {}".format(torch.__version__))
+        raise RuntimeError(
+            f"--cpp_ext requires Pytorch 1.0 or later, found torch.__version__ = {torch.__version__}"
+        )
     from torch.utils.cpp_extension import BuildExtension
     cmdclass['build_ext'] = BuildExtension
 
@@ -81,7 +84,9 @@ if "--cpp_ext" in sys.argv:
                      ['csrc/flatten_unflatten.cpp',]))
 
 def get_cuda_bare_metal_version(cuda_dir):
-    raw_output = subprocess.check_output([cuda_dir + "/bin/nvcc", "-V"], universal_newlines=True)
+    raw_output = subprocess.check_output(
+        [f"{cuda_dir}/bin/nvcc", "-V"], universal_newlines=True
+    )
     output = raw_output.split()
     release_idx = output.index("release") + 1
     release = output[release_idx].split(".")
@@ -96,15 +101,23 @@ def check_cuda_torch_binary_vs_bare_metal(cuda_dir):
     torch_binary_minor = torch.version.cuda.split(".")[1]
 
     print("\nCompiling cuda extensions with")
-    print(raw_output + "from " + cuda_dir + "/bin\n")
+    print(f"{raw_output}from {cuda_dir}" + "/bin\n")
 
     if (bare_metal_major != torch_binary_major) or (bare_metal_minor != torch_binary_minor):
-        raise RuntimeError("Cuda extensions are being compiled with a version of Cuda that does " +
-                           "not match the version used to compile Pytorch binaries.  " +
-                           "Pytorch binaries were compiled with Cuda {}.\n".format(torch.version.cuda) +
-                           "In some cases, a minor-version mismatch will not cause later errors:  " +
-                           "https://github.com/NVIDIA/apex/pull/323#discussion_r287021798.  "
-                           "You can try commenting out this check (at your own risk).")
+        raise RuntimeError(
+            (
+                (
+                    (
+                        "Cuda extensions are being compiled with a version of Cuda that does "
+                        + "not match the version used to compile Pytorch binaries.  "
+                        + f"Pytorch binaries were compiled with Cuda {torch.version.cuda}.\n"
+                    )
+                    + "In some cases, a minor-version mismatch will not cause later errors:  "
+                )
+                + "https://github.com/NVIDIA/apex/pull/323#discussion_r287021798.  "
+                "You can try commenting out this check (at your own risk)."
+            )
+        )
 
 
 # Set up macros for forward/backward compatibility hack around

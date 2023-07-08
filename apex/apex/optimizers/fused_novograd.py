@@ -76,16 +76,15 @@ class FusedNovoGrad(torch.optim.Optimizer):
                         grad_averaging=grad_averaging, norm_type=norm_type,
                         init_zero=init_zero)
         super(FusedNovoGrad, self).__init__(params, defaults)
-        if multi_tensor_applier.available:
-            import amp_C
-            # Skip buffer
-
-            # Creating the overflow buffer on the same device as the params tensors.
-            self._dummy_overflow_buf = torch.tensor([0], dtype=torch.int, device=self.param_groups[0]["params"][0].device)
-            self.multi_tensor_novograd = amp_C.multi_tensor_novograd
-        else:
+        if not multi_tensor_applier.available:
             raise RuntimeError('apex.optimizers.FusedNovoGrad requires cuda extensions')
 
+        import amp_C
+        # Skip buffer
+
+        # Creating the overflow buffer on the same device as the params tensors.
+        self._dummy_overflow_buf = torch.tensor([0], dtype=torch.int, device=self.param_groups[0]["params"][0].device)
+        self.multi_tensor_novograd = amp_C.multi_tensor_novograd
         self.moment_mode = 0 if reg_inside_moment else 1
         self.set_grad_none = set_grad_none
 
@@ -112,10 +111,7 @@ class FusedNovoGrad(torch.optim.Optimizer):
             closure (callable, optional): A closure that reevaluates the model
                 and returns the loss.
         """
-        loss = None
-        if closure is not None:
-            loss = closure()
-
+        loss = closure() if closure is not None else None
         for group in self.param_groups:
             bias_correction = 1 if group['bias_correction'] else 0
             beta1, beta2 = group['betas']
@@ -179,7 +175,7 @@ class FusedNovoGrad(torch.optim.Optimizer):
                 assert(len(g_16) == group['exp_avg_sq'][0].numel())
                 assert(len(g_32) == group['exp_avg_sq'][1].numel())
 
-            if(len(g_16) > 0):
+            if g_16:
                 multi_tensor_applier(self.multi_tensor_novograd,
                                      self._dummy_overflow_buf,
                                      [g_16, p_16, m_16],
@@ -194,7 +190,7 @@ class FusedNovoGrad(torch.optim.Optimizer):
                                      grad_averaging,
                                      self.moment_mode,
                                      group['norm_type'])
-            if(len(g_32) > 0):
+            if g_32:
                 multi_tensor_applier(self.multi_tensor_novograd,
                                      self._dummy_overflow_buf,
                                      [g_32, p_32, m_32],

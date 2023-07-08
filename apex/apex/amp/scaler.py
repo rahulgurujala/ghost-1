@@ -51,8 +51,8 @@ class LossScaler(object):
         self._max_loss_scale = max_loss_scale
         self._min_loss_scale = min_loss_scale
         self._scale_seq_len = scale_window
-        self._unskipped = 0
         self._has_overflow = False
+        self._unskipped = 0
         self._overflow_buf = torch.cuda.IntTensor([0])
         if multi_tensor_applier.available:
             import amp_C
@@ -62,11 +62,9 @@ class LossScaler(object):
         else:
             if not LossScaler.warned_no_fused_kernel:
                 maybe_print(
-                    "Warning:  multi_tensor_applier fused unscale kernel is unavailable, "
-                    "possibly because apex was installed without --cuda_ext --cpp_ext. "
-                    "Using Python fallback.  Original ImportError was: " +
-                    repr(multi_tensor_applier.import_err),
-                    True)
+                    f"Warning:  multi_tensor_applier fused unscale kernel is unavailable, possibly because apex was installed without --cuda_ext --cpp_ext. Using Python fallback.  Original ImportError was: {repr(multi_tensor_applier.import_err)}",
+                    True,
+                )
             LossScaler.has_fused_kernel = False
             LossScaler.warned_no_fused_kernel = True
 
@@ -79,9 +77,12 @@ class LossScaler(object):
                 if not LossScaler.warned_unscaling_non_fp32_grad:
                     if master.dtype != torch.float32:
                         maybe_print(
-                            "Attempting to unscale a grad with type {} ".format(master.type()) +
-                            "Unscaling non-fp32 grads may indicate an error. "
-                            "When using Amp, you don't need to call .half() on your model.")
+                            (
+                                f"Attempting to unscale a grad with type {master.type()} "
+                                + "Unscaling non-fp32 grads may indicate an error. "
+                                "When using Amp, you don't need to call .half() on your model."
+                            )
+                        )
                         LossScaler.warned_unscaling_non_fp32_grad = True
                 self._has_overflow = scale_check_overflow_python(model,
                                                                  master,
@@ -95,10 +96,7 @@ class LossScaler(object):
         if self._has_overflow:
             return
 
-        scale = self._loss_scale
-        if scale_override is not None:
-            scale = scale_override
-
+        scale = scale_override if scale_override is not None else self._loss_scale
         if scale == 1.0 and models_are_masters and not self.dynamic:
             return
 
@@ -132,22 +130,20 @@ class LossScaler(object):
         for model, stashed, master in zip(model_grads, stashed_master_grads, master_grads):
             if model is None and stashed is None:
                 continue
-            else:
-                if not LossScaler.warned_unscaling_non_fp32_grad:
-                    if master.dtype != torch.float32:
-                        maybe_print(
-                            "Attempting to unscale a grad with type {} ".format(master.type()) +
-                            "Unscaling non-fp32 grads may indicate an error. "
-                            "When using Amp, you don't need to call .half() on your model.")
-                        LossScaler.warned_unscaling_non_fp32_grad = True
-                self._has_overflow = axpby_check_overflow_python(model,
-                                                                 stashed,
-                                                                 master,
-                                                                 a,
-                                                                 b,
-                                                                 self.dynamic)
-                if self._has_overflow and self.dynamic:
-                    break
+            if not LossScaler.warned_unscaling_non_fp32_grad:
+                if master.dtype != torch.float32:
+                    maybe_print(
+                        f"Attempting to unscale a grad with type {master.type()} Unscaling non-fp32 grads may indicate an error. When using Amp, you don't need to call .half() on your model."
+                    )
+                    LossScaler.warned_unscaling_non_fp32_grad = True
+            self._has_overflow = axpby_check_overflow_python(model,
+                                                             stashed,
+                                                             master,
+                                                             a,
+                                                             b,
+                                                             self.dynamic)
+            if self._has_overflow and self.dynamic:
+                break
 
     def unscale_with_stashed(self,
                              model_grads,

@@ -180,6 +180,7 @@ class DistributedFusedAdamV2(torch.optim.Optimizer):
             list_of_list_of_shards = [__shardify(block) for block in list_of_blocks]
             list_of_list_of_list_of_chunks = [[__chunkify(shard) for shard in shards] for shards in list_of_list_of_shards]
             return list_of_blocks, list_of_list_of_shards, list_of_list_of_list_of_chunks
+
         self._flat_grads_blocks, self._flat_grads_shards, self._flat_grads_chunks = _flat_split(self._flat_grads)
         def _full_packed_split(p):
             def __shardify(p):
@@ -192,6 +193,7 @@ class DistributedFusedAdamV2(torch.optim.Optimizer):
             list_of_list_of_mega_blocks = [__blockify(mega_shard) for mega_shard in list_of_mega_shards]
             list_of_list_of_list_of_mega_chunks = [[__chunkify(mega_block) for mega_block in mega_blocks] for mega_blocks in list_of_list_of_mega_blocks]
             return list_of_mega_shards, list_of_list_of_mega_blocks, list_of_list_of_list_of_mega_chunks
+
         self._new_params_mega_shards, self._new_params_mega_blocks, self._new_params_mega_chunks = _full_packed_split(self._new_params)
         def _packed_split(p):
             def __packed_blockify(p):
@@ -202,6 +204,7 @@ class DistributedFusedAdamV2(torch.optim.Optimizer):
             list_of_blocks = __packed_blockify(p)
             list_of_list_of_chunks = [__packed_chunkify(block) for block in list_of_blocks]
             return list_of_blocks, list_of_list_of_chunks
+
         self._fp32_p_blocks, self._fp32_p_chunks = _packed_split(self._fp32_p)
         self._fp32_m_blocks, self._fp32_m_chunks = _packed_split(self._fp32_m)
         self._fp32_v_blocks, self._fp32_v_chunks = _packed_split(self._fp32_v)
@@ -286,7 +289,9 @@ class DistributedFusedAdamV2(torch.optim.Optimizer):
                         if shard_id == self._rank_in_group:
                             # copy model parameters into master buffer
                             master_param_fragment = self._fp32_p_blocks[block_id][shard_offset:shard_offset+grad_length]
-                            print("model_param_fragment.size()=%s, new_param_packed_fragment.size()=%s, master_param_fragment.size()=%s" % (str(model_param_fragment.size()), str(new_param_packed_fragment.size()), str(master_param_fragment.size())))
+                            print(
+                                f"model_param_fragment.size()={str(model_param_fragment.size())}, new_param_packed_fragment.size()={str(new_param_packed_fragment.size())}, master_param_fragment.size()={str(master_param_fragment.size())}"
+                            )
                             master_param_fragment.copy_(model_param_fragment)
 
         p_in, p_out = zip(*self._packed_flat_to_model_params)
@@ -476,13 +481,11 @@ class DistributedFusedAdamV2(torch.optim.Optimizer):
         self._grads_generated[param_i]=True
         if not self._last_step:
             if self._overlap_reductions:
-                flush_block = self._get_flush_block()
-                while flush_block:
+                while flush_block := self._get_flush_block():
                     block_id = flush_block[0] // self._block_size
                     self._pipeline_block_reductions(block_id)
                     if self._full_pipeline:
                         self._pipeline_block_step(block_id)
-                    flush_block = self._get_flush_block()
 
     def set_global_scale(self, global_scale):
         """Set global scale.
@@ -521,7 +524,7 @@ class DistributedFusedAdamV2(torch.optim.Optimizer):
                 out_p,
                 stride,
                 1 if clear else 0)
-        self._has_overflow = False if self._overflow_buf.item() == 0 else True
+        self._has_overflow = self._overflow_buf.item() != 0
         return self._has_overflow
 
     @property
@@ -584,10 +587,7 @@ class DistributedFusedAdamV2(torch.optim.Optimizer):
                     self._param_group['weight_decay'])
 
     def step(self, closure=None, skip_overflow_check=False):
-        loss = None
-        if closure is not None:
-            loss = closure()
-
+        loss = closure() if closure is not None else None
         if self._last_step or not self._overlap_reductions or not self._full_pipeline:
             self._pipeline_step()
 

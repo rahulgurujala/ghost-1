@@ -29,8 +29,7 @@ class Foo(OperatorLayerBase):
 		self.type = types
 
 	def params(self):
-		p = OrderedDict([('T', self.shape), ('type', self.type)])
-		return p
+		return OrderedDict([('T', self.shape), ('type', self.type)])
 
 	def tc(self):
 		return "-"
@@ -73,9 +72,9 @@ class Copy(OperatorLayerBase):
 		self.dtype = dst['dtype']
 
 	def params(self):
-		#The data type might be different
-		p = OrderedDict([('T', self.shape), ('stype', self.stype), ('dtype', self.dtype)])
-		return p
+		return OrderedDict(
+			[('T', self.shape), ('stype', self.stype), ('dtype', self.dtype)]
+		)
 
 	def tc(self):
 		return "-"
@@ -116,8 +115,7 @@ class Clone(OperatorLayerBase):
 		self.type = t['dtype']
 
 	def params(self):
-		p = OrderedDict([('T', self.shape), ('type', self.type)])
-		return p
+		return OrderedDict([('T', self.shape), ('type', self.type)])
 
 	def flops(self):
 		return 0
@@ -158,8 +156,7 @@ class Contiguous(OperatorLayerBase):
 		self.type = t['dtype']
 
 	def params(self):
-		p = OrderedDict([('T', self.shape), ('type', self.type)])
-		return p
+		return OrderedDict([('T', self.shape), ('type', self.type)])
 
 	def flops(self):
 		return 0
@@ -200,8 +197,7 @@ class Any(OperatorLayerBase):
 		return
 
 	def params(self):
-		p = OrderedDict([('T', self.shape), ('type', self.type)])
-		return p
+		return OrderedDict([('T', self.shape), ('type', self.type)])
 
 	def op(self):
 		return self.op_

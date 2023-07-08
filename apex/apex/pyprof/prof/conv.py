@@ -178,8 +178,27 @@ class Conv(OperatorLayerBase):
 			assert False
 
 	def params(self):
-		p = OrderedDict([('N',self.N), ('C',self.C), ('H',self.H), ('W',self.W), ('K',self.K), ('P',self.P), ('Q',self.Q), ('R',self.R), ('S',self.S), ('ph',self.ph), ('pw',self.pw), ('U',self.U), ('V',self.V), ('dh',self.dh), ('dw',self.dw), ('g',self.g), ('type',self.type)])
-		return p
+		return OrderedDict(
+			[
+				('N', self.N),
+				('C', self.C),
+				('H', self.H),
+				('W', self.W),
+				('K', self.K),
+				('P', self.P),
+				('Q', self.Q),
+				('R', self.R),
+				('S', self.S),
+				('ph', self.ph),
+				('pw', self.pw),
+				('U', self.U),
+				('V', self.V),
+				('dh', self.dh),
+				('dw', self.dw),
+				('g', self.g),
+				('type', self.type),
+			]
+		)
 
 	def conv_bytes_flops(self, N, C, H, W, K, P, Q, R, S, g, t):
 		f = 2*N*K*P*Q*C*R*S/g #for fprop
@@ -196,13 +215,13 @@ class Conv(OperatorLayerBase):
 		elif any(x in self.name for x in Conv.convList+Conv.winoList+Conv.fftList+Conv.miscList):
 			if g == 1:
 				bytes, flops = self.conv_bytes_flops(N,C,H,W,K,P,Q,R,S,g,t)
-			else:
-				if "2d_grouped_direct_kernel" in self.name:	#only 1 kernel is called
-					bytes, flops = self.conv_bytes_flops(N,C,H,W,K,P,Q,R,S,g,t)
-				elif "spatialDepthwiseConvolutionUpdateOutput" in self.name: #one kernel for separable conv
-					bytes, flops = self.conv_bytes_flops(N,C,H,W,K,P,Q,R,S,g,t)
-				else:	#a kernel per group is called
-					bytes, flops = self.conv_bytes_flops(N,C/g,H,W,K/g,P,Q,R,S,1,t)
+			elif (
+				"2d_grouped_direct_kernel" in self.name
+				or "spatialDepthwiseConvolutionUpdateOutput" in self.name
+			):	#only 1 kernel is called
+				bytes, flops = self.conv_bytes_flops(N,C,H,W,K,P,Q,R,S,g,t)
+			else:	#a kernel per group is called
+				bytes, flops = self.conv_bytes_flops(N,C/g,H,W,K/g,P,Q,R,S,1,t)
 
 		elif ("calc_bias_diff" in self.name):	#bias gradient
 			elems = N*K*P*Q
@@ -224,10 +243,7 @@ class Conv(OperatorLayerBase):
 		return f
 
 	def tc(self):
-		for s in ["884cudnn", "1688cudnn"]:
-			if s in self.name:
-				return 1
-		return "-"
+		return next((1 for s in ["884cudnn", "1688cudnn"] if s in self.name), "-")
 
 	def op(self):
 		return self.op_

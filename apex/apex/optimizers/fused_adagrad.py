@@ -71,10 +71,7 @@ class FusedAdagrad(torch.optim.Optimizer):
             closure (callable, optional): A closure that reevaluates the model
                 and returns the loss.
         """
-        loss = None
-        if closure is not None:
-            loss = closure()
-
+        loss = closure() if closure is not None else None
         for group in self.param_groups:
             # create lists for multi-tensor apply
             g_16, p_16, h_16 = [], [], []
@@ -102,7 +99,7 @@ class FusedAdagrad(torch.optim.Optimizer):
                 else:
                     raise RuntimeError('FusedAdagrad only support fp16 and fp32.')
 
-            if(len(g_16) > 0):
+            if g_16:
                 multi_tensor_applier(self.multi_tensor_adagrad,
                                      self._dummy_overflow_buf,
                                      [g_16, p_16, h_16],
@@ -110,7 +107,7 @@ class FusedAdagrad(torch.optim.Optimizer):
                                      group['eps'],
                                      self.adagrad_w_mode,
                                      group['weight_decay'])
-            if(len(g_32) > 0):
+            if g_32:
                 multi_tensor_applier(self.multi_tensor_adagrad,
                                      self._dummy_overflow_buf,
                                      [g_32, p_32, h_32],

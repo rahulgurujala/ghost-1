@@ -32,8 +32,7 @@ class Cat(OperatorLayerBase):
 		self.shapes = shapes
 
 	def params(self):
-		p = OrderedDict([('T', self.shapes), ('type', self.type)])
-		return p
+		return OrderedDict([('T', self.shapes), ('type', self.type)])
 
 	def flops(self):
 		return 0
@@ -48,9 +47,7 @@ class Cat(OperatorLayerBase):
 		return self.mod_
 
 	def bytes(self):
-		b = 0
-		for s in self.shapes:
-			b += Utility.numElems(s)
+		b = sum(Utility.numElems(s) for s in self.shapes)
 		return 2 * b * Utility.typeToBytes(self.type)
 
 class Reshape(OperatorLayerBase):
@@ -80,8 +77,7 @@ class Reshape(OperatorLayerBase):
 		self.shape = t['shape']
 
 	def params(self):
-		p = OrderedDict([('T', self.shape), ('type', self.type)])
-		return p
+		return OrderedDict([('T', self.shape), ('type', self.type)])
 
 	def flops(self):
 		return 0
@@ -111,7 +107,7 @@ class Gather(OperatorLayerBase):
 		self.op_ = op
 		self.args = args
 
-		assert (mod == "Tensor") or (mod == "torch")
+		assert mod in ["Tensor", "torch"]
 		assert (op == "gather")
 
 		#Filter out the "out" parameter
@@ -130,8 +126,7 @@ class Gather(OperatorLayerBase):
 		self.type = arg['dtype']
 
 	def params(self):
-		p = OrderedDict([('T', self.shape),('type', self.type)])
-		return p
+		return OrderedDict([('T', self.shape),('type', self.type)])
 
 	def flops(self):
 		return 0
@@ -176,8 +171,7 @@ class MaskedScatter(OperatorLayerBase):
 		self.seqId = d.seqId
 
 	def params(self):
-		p = OrderedDict([('T', self.shape),('type', self.type)])
-		return p
+		return OrderedDict([('T', self.shape),('type', self.type)])
 
 	def flops(self):
 		return 0
@@ -227,8 +221,7 @@ class Nonzero(OperatorLayerBase):
 		self.seqId = d.seqId
 
 	def params(self):
-		p = OrderedDict([('T', self.shape),('type', self.type)])
-		return p
+		return OrderedDict([('T', self.shape),('type', self.type)])
 
 	def flops(self):
 		return 0
@@ -252,10 +245,7 @@ class Nonzero(OperatorLayerBase):
 		#in the worst case, the output is a (elems x dim) tensor of type "long"
 		b += elems * dim * Utility.typeToBytes("int64")
 
-		if self.seqId > 0:
-			return 0
-		else:
-			return b
+		return 0 if self.seqId > 0 else b
 
 class IndexSelect(OperatorLayerBase):
 
@@ -270,7 +260,7 @@ class IndexSelect(OperatorLayerBase):
 		self.op_ = op
 		self.args = args
 
-		assert (mod == "Tensor") or (mod == "torch")
+		assert mod in ["Tensor", "torch"]
 		assert (op == "index_select")
 
 		#Filter out the "out" parameter
@@ -309,8 +299,14 @@ class IndexSelect(OperatorLayerBase):
 		self.type = t['dtype']
 
 	def params(self):
-		p = OrderedDict([('T', self.shape),('D', self.dim),('I', self.indices),('type', self.type)])
-		return p
+		return OrderedDict(
+			[
+				('T', self.shape),
+				('D', self.dim),
+				('I', self.indices),
+				('type', self.type),
+			]
+		)
 
 	def tc(self):
 		return "-"
@@ -354,7 +350,7 @@ class MaskedSelect(OperatorLayerBase):
 		self.args = args
 		self.sub = d.sub
 
-		assert (mod == "Tensor") or (mod == "torch")
+		assert mod in ["Tensor", "torch"]
 		assert (op == "masked_select")
 
 		#Filter out the "out" parameter
@@ -391,8 +387,7 @@ class MaskedSelect(OperatorLayerBase):
 		self.type = t['dtype']
 
 	def params(self):
-		p = OrderedDict([('T', self.tshape),('M', self.mshape),('type', self.type)])
-		return p
+		return OrderedDict([('T', self.tshape),('M', self.mshape),('type', self.type)])
 
 	def tc(self):
 		return "-"

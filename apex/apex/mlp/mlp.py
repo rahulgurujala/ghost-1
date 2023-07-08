@@ -51,12 +51,12 @@ class MLP(torch.nn.Module):
         for i in range(self.num_layers):
             w = torch.nn.Parameter(torch.empty(mlp_sizes[i+1], mlp_sizes[i]))
             self.weights.append(w)
-            name = 'weight_{}'.format(i)
+            name = f'weight_{i}'
             setattr(self, name, w)
             if self.bias:
                 b = torch.nn.Parameter(torch.empty(mlp_sizes[i+1]))
                 self.biases.append(b)
-                name = 'bias_{}'.format(i)
+                name = f'bias_{i}'
                 setattr(self, name, b)
 
         self.reset_parameters()

@@ -19,8 +19,7 @@ def parseArgs():
 		default=None,
 		help="SQL db (nvvp) file.")
 
-	args = parser.parse_args()
-	return args
+	return parser.parse_args()
 
 def main():
 	args = parseArgs()
@@ -34,7 +33,10 @@ def main():
 		db.close()
 		sys.exit(0)
 	else:
-		print("Found {} kernels. Getting info for each kernel.".format(len(kInfo)), file=sys.stderr)
+		print(
+			f"Found {len(kInfo)} kernels. Getting info for each kernel.",
+			file=sys.stderr,
+		)
 
 	nvvp.createMarkerTable()
 
@@ -84,10 +86,7 @@ def main():
 			if (k.dir == "fprop"):
 				#Check if there is a sequence id larger than the previous
 				inc = (k.seqId[-1] > prevSeqId)
-				if inc:
-					currSeqId = [x for x in k.seqId if x > prevSeqId][0]
-				else:
-					currSeqId = prevSeqId
+				currSeqId = [x for x in k.seqId if x > prevSeqId][0] if inc else prevSeqId
 			else:
 				currSeqId = k.seqId[0]
 

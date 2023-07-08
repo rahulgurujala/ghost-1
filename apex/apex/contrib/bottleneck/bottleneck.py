@@ -52,7 +52,7 @@ class BottleneckFunction(torch.autograd.Function):
     @staticmethod
     def forward(ctx, nhwc, stride_1x1, scale, bias, x, *conv):
         # TODO: clean up order of tensors
-        args = [x, *conv[0:3], *scale[0:3], *bias[0:3]]
+        args = [x, *conv[:3], *scale[:3], *bias[:3]]
         ctx.downsample = len(conv) > 3
         if ctx.downsample:
             args.append(conv[3])
@@ -81,14 +81,13 @@ class BottleneckFunction(torch.autograd.Function):
             grad_conv3, grad_conv4 = drelu_dscale1(grad_o, outputs[2], ctx.saved_tensors[6])
 
         # create input vector for backward
-        t_list = [*ctx.saved_tensors[0:10]]
-        t_list.append(grad_conv3)
-        t_list.append(grad_conv4)
-
-        # outputs used for wgrad and generating drelu mask
-        t_list.append(outputs[0])
-        t_list.append(outputs[1])
-
+        t_list = [
+            *ctx.saved_tensors[:10],
+            grad_conv3,
+            grad_conv4,
+            outputs[0],
+            outputs[1],
+        ]
         # in case there is downsample
         if ctx.downsample:
             t_list.append(ctx.saved_tensors[10])
@@ -123,7 +122,7 @@ class Bottleneck(torch.nn.Module):
             raise RuntimeError('Only support groups == 1')
         if dilation != 1:
             raise RuntimeError('Only support dilation == 1')
-        if norm_func == None:
+        if norm_func is None:
             norm_func = FrozenBatchNorm2d
         else:
             raise RuntimeError('Only support frozen BN now.')
@@ -185,9 +184,9 @@ class Bottleneck(torch.nn.Module):
                 w_scale.append(s4)
                 w_bias.append(b4)
 
-            out = bottleneck_function(self.explicit_nhwc, self.stride, w_scale, w_bias, x, *self.w_conv)
-            return out
-
+            return bottleneck_function(
+                self.explicit_nhwc, self.stride, w_scale, w_bias, x, *self.w_conv
+            )
         if self.explicit_nhwc:
             raise RuntimeError('explicit nhwc with native ops is not supported.')
 

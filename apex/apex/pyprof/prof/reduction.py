@@ -30,8 +30,7 @@ class Mean(OperatorLayerBase):
 		self.sub = d.sub
 
 	def params(self):
-		p = OrderedDict([('T', self.shape), ('type', self.type)])
-		return p
+		return OrderedDict([('T', self.shape), ('type', self.type)])
 
 	def tc(self):
 		return "-"
@@ -46,16 +45,10 @@ class Mean(OperatorLayerBase):
 		return Utility.numElems(self.shape)
 
 	def bytes(self):
-		if self.sub == 0:
-			return self.elems() * Utility.typeToBytes(self.type)
-		else:
-			return 0
+		return self.elems() * Utility.typeToBytes(self.type) if self.sub == 0 else 0
 
 	def flops(self):
-		if self.sub == 0:
-			return self.elems() + 1
-		else:
-			return 0
+		return self.elems() + 1 if self.sub == 0 else 0
 
 class Sum(OperatorLayerBase):
 
@@ -84,8 +77,7 @@ class Sum(OperatorLayerBase):
 		self.type = i['dtype']
 
 	def params(self):
-		p = OrderedDict([('T', self.shape), ('type', self.type)])
-		return p
+		return OrderedDict([('T', self.shape), ('type', self.type)])
 
 	def tc(self):
 		return "-"
@@ -127,8 +119,7 @@ class Norm(OperatorLayerBase):
 		self.type = i['dtype']
 
 	def params(self):
-		p = OrderedDict([('T', self.shape), ('type', self.type)])
-		return p
+		return OrderedDict([('T', self.shape), ('type', self.type)])
 
 	def elems(self):
 		return Utility.numElems(self.shape)

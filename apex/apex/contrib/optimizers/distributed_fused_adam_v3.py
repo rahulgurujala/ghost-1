@@ -194,7 +194,7 @@ class DistributedFusedAdamV3(torch.optim.Optimizer):
 
     @property
     def has_overflow(self):
-        return True if not self.L2_grad_norm is None and not math.isfinite(self.L2_grad_norm) else False
+        return self.L2_grad_norm is not None and not math.isfinite(self.L2_grad_norm)
 
     def set_last_step(self, last_step):
         self._last_step = last_step
@@ -252,8 +252,7 @@ class DistributedFusedAdamV3(torch.optim.Optimizer):
             torch.div(param.grad, self._world_size if self._predivide else 1.0, out=self._individual_flat_grads[param_i])
         self._grads_generated[param_i]=True
         if not self._last_step and self._overlap_reductions:
-            flush_block = self._get_flush_block()
-            while flush_block:
+            while flush_block := self._get_flush_block():
                 block_id = flush_block[0] // self._block_size
                 self._dwu_st.wait_stream(torch.cuda.current_stream())
                 with torch.cuda.stream(self._dwu_st):
@@ -263,7 +262,6 @@ class DistributedFusedAdamV3(torch.optim.Optimizer):
                     self._l2_grad_norm_st.wait_stream(self._dwu_st)
                     with torch.cuda.stream(self._l2_grad_norm_st):
                         self._L2_grad_norm = self._flat_grads.norm(dtype=torch.float32, p=2).item()
-                flush_block = self._get_flush_block()
 
     def set_global_scale(self, global_scale):
         """Set global scale.
@@ -304,10 +302,7 @@ class DistributedFusedAdamV3(torch.optim.Optimizer):
         self._grads_generated = [False]*len(self._grads_info)
 
     def step(self, closure=None, skip_overflow_check=False):
-        loss = None
-        if closure is not None:
-            loss = closure()
-
+        loss = closure() if closure is not None else None
         with torch.cuda.stream(self._dwu_st):
             self.__launch_step_kernel(
                 self._fp32_p,

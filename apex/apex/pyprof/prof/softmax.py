@@ -38,8 +38,7 @@ class Softmax(OperatorLayerBase):
 		return "-"
 
 	def params(self):
-		p = OrderedDict([('T', self.shape), ('type', self.type)])
-		return p
+		return OrderedDict([('T', self.shape), ('type', self.type)])
 
 	def elems(self):
 		return Utility.numElems(self.shape)
@@ -98,8 +97,7 @@ class LogSoftmax(OperatorLayerBase):
 		return "-"
 
 	def params(self):
-		p = OrderedDict([('T', self.shape), ('type', self.type)])
-		return p
+		return OrderedDict([('T', self.shape), ('type', self.type)])
 
 	def elems(self):
 		return Utility.numElems(self.shape)

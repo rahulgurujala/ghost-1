@@ -22,7 +22,7 @@ class NVVP(object):
 		profStart = sys.maxsize
 		for table in [self.driverT, self.runtimeT, self.kernelT, self.markerT]:
 			colname = "timestamp" if table is self.markerT else "start"
-			cmd = "select {} from {} ORDER BY {} ASC LIMIT 1".format(colname, table, colname)
+			cmd = f"select {colname} from {table} ORDER BY {colname} ASC LIMIT 1"
 			result = self.db.select(cmd)
 			assert(len(result) <= 1)
 			if (len(result) == 1):
@@ -37,7 +37,7 @@ class NVVP(object):
 		"""
 		Get the string associated with an id.
 		"""
-		cmd = "select value from {} where _id_ = {}".format(self.stringT, id_)
+		cmd = f"select value from {self.stringT} where _id_ = {id_}"
 		result = self.db.select(cmd)
 		assert (len(result) == 1)
 		return result[0]['value']
@@ -69,13 +69,13 @@ class NVVP(object):
 		"""
 
 		#First look in the runtime table
-		cmd = "select start,end,processId,threadId from {} where correlationId={}".format(self.runtimeT, corrId);
+		cmd = f"select start,end,processId,threadId from {self.runtimeT} where correlationId={corrId}";
 		result = self.db.select(cmd)
 		assert (len(result) <= 1)
 
 		if (len(result) == 0):
 			#Look in the driver table
-			cmd = "select start,end,processId,threadId from {} where correlationId={}".format(self.driverT, corrId);
+			cmd = f"select start,end,processId,threadId from {self.driverT} where correlationId={corrId}";
 			result = self.db.select(cmd)
 
 		assert (len(result) == 1)
@@ -92,9 +92,8 @@ class NVVP(object):
 		"""
 		Get GPU kernel info
 		"""
-		cmd = "select name,correlationId,start,end,deviceId,streamId,gridX,gridY,gridZ,blockX,blockY,blockZ from {}".format(self.kernelT)
-		result = self.db.select(cmd)
-		return result
+		cmd = f"select name,correlationId,start,end,deviceId,streamId,gridX,gridY,gridZ,blockX,blockY,blockZ from {self.kernelT}"
+		return self.db.select(cmd)
 
 	def getMarkerInfo(self, objId, startTime, endTime):
 		"""
@@ -157,9 +156,7 @@ class NVVP(object):
 				seq = int(m.split("=")[1])
 				ids.append(seq)
 
-			#Remove duplicates
-			ids = list(set(ids))
-			ids.sort()
+			ids = sorted(set(ids))
 			return ids
 
 		def seqcompare(elem):
@@ -178,7 +175,7 @@ class NVVP(object):
 			"""
 			assert (type(mlist) == list)
 			assert (len(mlist))
-			a = mlist[0:1]
+			a = mlist[:1]
 			for i in range(1,len(mlist)):
 				m = mlist[i]
 				pm = mlist[i-1]
@@ -260,7 +257,7 @@ class NVVP(object):
 			loId = self.markerId
 			hiId = result[-1]['id']
 			self.markerId = hiId
-			
+
 			#Get markers between loId and hiId
 			cmd = 'SELECT id,name from marker where objectId = "{}" and id > {} and id < {} ORDER BY startTime ASC'.format(objId, loId, hiId)
 			result1 = self.db.select(cmd)

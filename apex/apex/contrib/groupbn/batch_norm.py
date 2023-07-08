@@ -7,26 +7,45 @@ import bnp
 class bn_NHWC_impl(torch.autograd.Function):
     @staticmethod
     def forward(ctx, x, s, b, rm, riv, mini_m, mini_riv, ret_cta, mom, epsilon, fuse_relu, is_train, bn_group, my_data, pair_data, magic, pair_data2, pair_data3, fwd_occup, fwd_grid_x, bwd_occup, bwd_grid_x, multi_stream):
-        if is_train:
-            ctx.save_for_backward(x, s, b, rm, riv, mini_m, mini_riv)
-            ctx.epsilon = epsilon
-            ctx.momentum = mom
-            ctx.ret_cta = ret_cta
-            ctx.fuse_relu = fuse_relu
-            ctx.my_data = my_data
-            ctx.pair_data = pair_data
-            ctx.magic = magic
-            ctx.pair_data2 = pair_data2
-            ctx.pair_data3 = pair_data3
-            ctx.bn_group = bn_group
-            ctx.bwd_occup = bwd_occup
-            ctx.bwd_grid_x = bwd_grid_x
-            ctx.multi_stream = multi_stream
-
-            res =  bnp.bn_fwd_nhwc(x, s, b, rm, riv, mini_m, mini_riv, ret_cta, mom, epsilon, fuse_relu, my_data, pair_data, pair_data2, pair_data3, bn_group, magic, fwd_occup, fwd_grid_x, multi_stream)
-            return res
-        else:
+        if not is_train:
             return bnp.bn_fwd_eval_nhwc(x, s, b, rm, riv, ret_cta, bn_group, mom, epsilon, fuse_relu)
+        ctx.save_for_backward(x, s, b, rm, riv, mini_m, mini_riv)
+        ctx.epsilon = epsilon
+        ctx.momentum = mom
+        ctx.ret_cta = ret_cta
+        ctx.fuse_relu = fuse_relu
+        ctx.my_data = my_data
+        ctx.pair_data = pair_data
+        ctx.magic = magic
+        ctx.pair_data2 = pair_data2
+        ctx.pair_data3 = pair_data3
+        ctx.bn_group = bn_group
+        ctx.bwd_occup = bwd_occup
+        ctx.bwd_grid_x = bwd_grid_x
+        ctx.multi_stream = multi_stream
+
+        return bnp.bn_fwd_nhwc(
+            x,
+            s,
+            b,
+            rm,
+            riv,
+            mini_m,
+            mini_riv,
+            ret_cta,
+            mom,
+            epsilon,
+            fuse_relu,
+            my_data,
+            pair_data,
+            pair_data2,
+            pair_data3,
+            bn_group,
+            magic,
+            fwd_occup,
+            fwd_grid_x,
+            multi_stream,
+        )
 
     @staticmethod
     def backward(ctx, grad_y):
@@ -53,26 +72,46 @@ class bn_NHWC_impl(torch.autograd.Function):
 class bn_addrelu_NHWC_impl(torch.autograd.Function):
     @staticmethod
     def forward(ctx, x, z, s, b, rm, riv, mini_m, mini_riv, grid_dim_y, ret_cta, mom, epsilon, is_train, bn_group, my_data, pair_data, magic, pair_data2, pair_data3, fwd_occup, fwd_grid_x, bwd_occup, bwd_grid_x, multi_stream):
-        if is_train:
-            bitmask = torch.cuda.IntTensor(((x.numel()+31)//32) * 2 * grid_dim_y)
-            ctx.save_for_backward(x, s, b, rm, riv, mini_m, mini_riv, bitmask)
-            ctx.epsilon = epsilon
-            ctx.momentum = mom
-            ctx.ret_cta = ret_cta
-            ctx.my_data = my_data
-            ctx.pair_data = pair_data
-            ctx.magic = magic
-            ctx.pair_data2 = pair_data2
-            ctx.pair_data3 = pair_data3
-            ctx.bn_group = bn_group
-            ctx.bwd_occup = bwd_occup
-            ctx.bwd_grid_x = bwd_grid_x
-            ctx.multi_stream = multi_stream
-
-            res =  bnp.bn_addrelu_fwd_nhwc(x, z, s, b, rm, riv, mini_m, mini_riv, bitmask, ret_cta, mom, epsilon, my_data, pair_data, pair_data2, pair_data3, bn_group, magic, fwd_occup, fwd_grid_x, multi_stream)
-            return res
-        else:
+        if not is_train:
             return bnp.bn_addrelu_fwd_eval_nhwc(x, z, s, b, rm, riv, ret_cta, bn_group, mom, epsilon)
+        bitmask = torch.cuda.IntTensor(((x.numel()+31)//32) * 2 * grid_dim_y)
+        ctx.save_for_backward(x, s, b, rm, riv, mini_m, mini_riv, bitmask)
+        ctx.epsilon = epsilon
+        ctx.momentum = mom
+        ctx.ret_cta = ret_cta
+        ctx.my_data = my_data
+        ctx.pair_data = pair_data
+        ctx.magic = magic
+        ctx.pair_data2 = pair_data2
+        ctx.pair_data3 = pair_data3
+        ctx.bn_group = bn_group
+        ctx.bwd_occup = bwd_occup
+        ctx.bwd_grid_x = bwd_grid_x
+        ctx.multi_stream = multi_stream
+
+        return bnp.bn_addrelu_fwd_nhwc(
+            x,
+            z,
+            s,
+            b,
+            rm,
+            riv,
+            mini_m,
+            mini_riv,
+            bitmask,
+            ret_cta,
+            mom,
+            epsilon,
+            my_data,
+            pair_data,
+            pair_data2,
+            pair_data3,
+            bn_group,
+            magic,
+            fwd_occup,
+            fwd_grid_x,
+            multi_stream,
+        )
 
     @staticmethod
     def backward(ctx, grad_y):
@@ -144,14 +183,14 @@ class BatchNorm2d_NHWC(_BatchNorm):
         #FIXME: turn pair handles into an array
         if bn_group>1:
             local_rank = torch.distributed.get_rank()
-            world_size = torch.distributed.get_world_size()          
+            world_size = torch.distributed.get_world_size()
             assert(world_size >= bn_group)
             assert(world_size % bn_group == 0)
-         
+
             bn_sync_steps = 1
-            if (bn_group==4):
+            if bn_group == 4:
                 bn_sync_steps = 2
-            if (bn_group==8):
+            elif bn_group == 8:
                 bn_sync_steps = 3
 
             self.ipc_buffer = torch.cuda.ByteTensor(bnp.get_buffer_size(bn_sync_steps))
@@ -194,18 +233,7 @@ class BatchNorm2d_NHWC(_BatchNorm):
 
 
     def forward(self, x, z=None):
-        if z is not None:
-            assert(self.fuse_relu==True)
-            return bn_addrelu_NHWC_impl.apply(x, z,
-                                  self.weight, self.bias,
-                                  self.running_mean, self.running_var,
-                                  self.minibatch_mean, self.minibatch_riv, self.grid_dim_y, self.ret_cta,
-                                  self.momentum,
-                                  self.eps, self.training, self.bn_group, self.my_data, self.pair_data, (self.magic), self.pair_data2, self.pair_data3,
-                                  self.addrelu_fwd_occupancy, self.addrelu_fwd_grid_dim_x,
-                                  self.addrelu_bwd_occupancy, self.addrelu_bwd_grid_dim_x,
-                                  self.multi_stream)
-        else:
+        if z is None:
             return bn_NHWC_impl.apply(x,
                                   self.weight, self.bias,
                                   self.running_mean, self.running_var,
@@ -215,6 +243,16 @@ class BatchNorm2d_NHWC(_BatchNorm):
                                   self.fwd_occupancy, self.fwd_grid_dim_x,
                                   self.bwd_occupancy, self.bwd_grid_dim_x,
                                   self.multi_stream)
+        assert(self.fuse_relu==True)
+        return bn_addrelu_NHWC_impl.apply(x, z,
+                              self.weight, self.bias,
+                              self.running_mean, self.running_var,
+                              self.minibatch_mean, self.minibatch_riv, self.grid_dim_y, self.ret_cta,
+                              self.momentum,
+                              self.eps, self.training, self.bn_group, self.my_data, self.pair_data, (self.magic), self.pair_data2, self.pair_data3,
+                              self.addrelu_fwd_occupancy, self.addrelu_fwd_grid_dim_x,
+                              self.addrelu_bwd_occupancy, self.addrelu_bwd_grid_dim_x,
+                              self.multi_stream)
 
     def __del__(self):
         if self.bn_group>1:

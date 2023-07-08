@@ -89,8 +89,7 @@ def parse():
     parser.add_argument('--keep-batchnorm-fp32', type=str, default=None)
     parser.add_argument('--loss-scale', type=str, default=None)
     parser.add_argument('--channels-last', type=bool, default=False)
-    args = parser.parse_args()
-    return args
+    return parser.parse_args()
 
 def main():
     global best_prec1, args
@@ -196,13 +195,10 @@ def main():
     traindir = os.path.join(args.data, 'train')
     valdir = os.path.join(args.data, 'val')
 
-    if(args.arch == "inception_v3"):
+    if (args.arch == "inception_v3"):
         raise RuntimeError("Currently, inception_v3 is not supported by this example.")
-        # crop_size = 299
-        # val_size = 320 # I chose this value arbitrarily, we can adjust.
-    else:
-        crop_size = 224
-        val_size = 256
+    crop_size = 224
+    val_size = 256
 
     train_dataset = datasets.ImageFolder(
         traindir,
@@ -332,12 +328,12 @@ def train(train_loader, model, criterion, optimizer, epoch):
     i = 0
     while input is not None:
         i += 1
-        if args.prof >= 0 and i == args.prof:
-            print("Profiling begun at iteration {}".format(i))
-            torch.cuda.cudart().cudaProfilerStart()
+        if args.prof >= 0:
+            if i == args.prof:
+                print(f"Profiling begun at iteration {i}")
+                torch.cuda.cudart().cudaProfilerStart()
 
-        if args.prof >= 0: torch.cuda.nvtx.range_push("Body of iteration {}".format(i))
-
+            torch.cuda.nvtx.range_push(f"Body of iteration {i}")
         adjust_learning_rate(optimizer, epoch, i, len(train_loader))
 
         # compute output
@@ -406,7 +402,7 @@ def train(train_loader, model, criterion, optimizer, epoch):
         if args.prof >= 0: torch.cuda.nvtx.range_pop()
 
         if args.prof >= 0 and i == args.prof + 10:
-            print("Profiling ended at iteration {}".format(i))
+            print(f"Profiling ended at iteration {i}")
             torch.cuda.cudart().cudaProfilerStop()
             quit()
 
